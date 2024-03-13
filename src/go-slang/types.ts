@@ -1,17 +1,49 @@
 export enum NodeType {
+  SourceFile = 'SourceFile',
+  Block = 'Block',
+  VariableDeclaration = 'VariableDeclaration',
+  FunctionDeclaration = 'FunctionDeclaration',
   ExpressionStatement = 'ExpressionStatement',
   Literal = 'Literal',
   UnaryExpression = 'UnaryExpression',
   BinaryExpression = 'BinaryExpression'
 }
 
-// NOTE: right now, the only type of source file is an expression statement
-export type SourceFile = ExpressionStatement
+type TopLevelDeclaration = Declaration | FunctionDeclaration
+
+type Declaration = VariableDeclaration
+
+type Statement = Declaration | Block
+
+type Block = Statement[]
 
 type Expression = Literal | UnaryExpression | BinaryExpression
 
 export interface Node {
   type: NodeType
+}
+
+export interface SourceFile extends Node {
+  type: NodeType.SourceFile
+  topLevelDecls: TopLevelDeclaration[]
+}
+
+export interface VariableDeclaration extends Node {
+  type: NodeType.VariableDeclaration
+  declarations: string[]
+  expression: Expression[]
+}
+
+export interface FunctionDeclaration extends Node {
+  type: NodeType.FunctionDeclaration
+  name: string
+  params: string[]
+  body: BlockStatement
+}
+
+export interface BlockStatement extends Node {
+  type: NodeType.Block
+  body: Statement[]
 }
 
 export interface ExpressionStatement extends Node {
@@ -73,4 +105,12 @@ export interface BinaryOp extends Command {
   operator: BinaryOperator
 }
 
-export type Instruction = ExpressionStatement | Expression | UnaryOp | BinaryOp
+export type Instruction =
+  | SourceFile
+  | VariableDeclaration
+  | FunctionDeclaration
+  | BlockStatement
+  | ExpressionStatement
+  | Expression
+  | UnaryOp
+  | BinaryOp
