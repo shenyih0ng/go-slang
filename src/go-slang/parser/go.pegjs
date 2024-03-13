@@ -180,7 +180,7 @@ VarSpec
       }
 
 ShortVariableDeclaration
-    = ids:IdentifierList _ ":=" _ exprs:ExpressionList {
+    = ids:IdentifierList _ ":=" _ exprs:ExpressionList EOS {
         return { type: "VariableDeclaration", declarations: ids, expressions: exprs }
       }
 
@@ -203,7 +203,7 @@ Signature
 /* Block */
 
 Block "block"
-    = "{" _ statements:Statement* _ "}" {
+    = "{" _ statements:Statement* _ "}" EOS {
         return { type: "Block", statements }
       }
 
