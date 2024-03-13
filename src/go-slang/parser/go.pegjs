@@ -38,10 +38,12 @@ SourceFile
 
 TopLevelDeclaration
     = Declaration
+    / FunctionDeclaration
 
 Statement
     = Declaration
     / SimpleStatement
+    / Block
 
 Declaration
     = VariableDeclaration
@@ -165,6 +167,8 @@ RelationalOperator
     / ">="
     / ">"
 
+/* Variable Declaration */
+
 VariableDeclaration
     = VAR_TOKEN __ declarations:VarSpec EOS {
         return { type: "VariableDeclaration", ...declarations }
@@ -185,6 +189,23 @@ IdentifierList
 
 ExpressionList
     = head:Expression _ tail:(_ "," _ Expression)* { return buildList(head, tail, 3); }
+
+/* Function Declaration */
+
+FunctionDeclaration "function declaration"
+    = FUNC_TOKEN __ name:Identifier _ params:Signature _ body:Block EOS {
+        return { type: "FunctionDeclaration", name, params, body}
+      }
+
+Signature
+    = "(" _ params:IdentifierList? _ ")" { return params }
+
+/* Block */
+
+Block "block"
+    = "{" _ statements:Statement* _ "}" {
+        return { type: "Block", statements }
+      }
 
 /* Tokens */
 
