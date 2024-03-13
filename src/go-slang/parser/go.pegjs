@@ -175,13 +175,13 @@ VariableDeclaration
       }
 
 VarSpec
-    = ids:IdentifierList _ exprs:("=" _ ExpressionList)? {
-        return { declarations: ids, expressions: exprs && exprs[2] }
+    = left:IdentifierList _ right:("=" _ ExpressionList)? {
+        return { left, right: right && right[2] }
       }
 
 ShortVariableDeclaration
-    = ids:IdentifierList _ ":=" _ exprs:ExpressionList EOS {
-        return { type: "VariableDeclaration", declarations: ids, expressions: exprs }
+    = left:IdentifierList _ ":=" _ right:ExpressionList EOS {
+        return { type: "VariableDeclaration", left, right }
       }
 
 IdentifierList

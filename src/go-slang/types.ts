@@ -30,8 +30,8 @@ export interface SourceFile extends Node {
 
 export interface VariableDeclaration extends Node {
   type: NodeType.VariableDeclaration
-  declarations: string[]
-  expression: Expression[]
+  left: string[]
+  right: Expression[]
 }
 
 export interface FunctionDeclaration extends Node {
