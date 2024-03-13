@@ -4,6 +4,7 @@ export enum NodeType {
   VariableDeclaration = 'VariableDeclaration',
   FunctionDeclaration = 'FunctionDeclaration',
   ExpressionStatement = 'ExpressionStatement',
+  Assignment = 'Assignment',
   Literal = 'Literal',
   UnaryExpression = 'UnaryExpression',
   BinaryExpression = 'BinaryExpression'
@@ -49,6 +50,12 @@ export interface BlockStatement extends Node {
 export interface ExpressionStatement extends Node {
   type: NodeType.ExpressionStatement
   expression: Expression
+}
+
+export interface Assignment extends Node {
+  type: NodeType.Assignment
+  left: Expression[]
+  right: Expression[]
 }
 
 export interface Literal extends Node {

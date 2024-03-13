@@ -50,6 +50,7 @@ Declaration
 
 SimpleStatement
     = ShortVariableDeclaration
+    / Assignment
     / ExpressionStatement
 
 ExpressionStatement
@@ -184,12 +185,6 @@ ShortVariableDeclaration
         return { type: "VariableDeclaration", left, right }
       }
 
-IdentifierList
-    = head:Identifier _ tail:(_ "," _ Identifier)* { return buildList(head, tail, 3); }
-
-ExpressionList
-    = head:Expression _ tail:(_ "," _ Expression)* { return buildList(head, tail, 3); }
-
 /* Function Declaration */
 
 FunctionDeclaration "function declaration"
@@ -206,6 +201,19 @@ Block "block"
     = "{" _ statements:Statement* _ "}" EOS {
         return { type: "Block", statements }
       }
+
+/* Assignment */
+
+Assignment
+    = left:ExpressionList _ "=" _ right:ExpressionList EOS {
+        return { type: "Assignment", left, right }
+      }
+
+IdentifierList
+    = head:Identifier _ tail:(_ "," _ Identifier)* { return buildList(head, tail, 3); }
+
+ExpressionList
+    = head:Expression _ tail:(_ "," _ Expression)* { return buildList(head, tail, 3); }
 
 /* Tokens */
 
