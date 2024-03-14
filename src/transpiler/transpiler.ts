@@ -68,22 +68,25 @@ export async function transformImportDeclarations(
   const [importNodes, otherNodes] = partition(program.body, isImportDeclaration)
 
   if (importNodes.length === 0) return ['', [], otherNodes]
-  const importNodeMap = importNodes.reduce((res, node) => {
-    const moduleName = node.source.value
-    assert(
-      typeof moduleName === 'string',
-      `Expected ImportDeclaration to have a source of type string, got ${moduleName}`
-    )
+  const importNodeMap = importNodes.reduce(
+    (res, node) => {
+      const moduleName = node.source.value
+      assert(
+        typeof moduleName === 'string',
+        `Expected ImportDeclaration to have a source of type string, got ${moduleName}`
+      )
 
-    if (!(moduleName in res)) {
-      res[moduleName] = []
-    }
+      if (!(moduleName in res)) {
+        res[moduleName] = []
+      }
 
-    res[moduleName].push(node)
+      res[moduleName].push(node)
 
-    node.specifiers.forEach(({ local: { name } }) => usedIdentifiers.add(name))
-    return res
-  }, {} as Record<string, es.ImportDeclaration[]>)
+      node.specifiers.forEach(({ local: { name } }) => usedIdentifiers.add(name))
+      return res
+    },
+    {} as Record<string, es.ImportDeclaration[]>
+  )
 
   const manifest = await memoizedGetModuleManifestAsync()
 
