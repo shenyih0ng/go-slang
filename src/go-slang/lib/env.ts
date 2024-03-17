@@ -13,6 +13,11 @@ export class Environment {
     this.bindings.set(name, value)
   }
 
+  public declareZeroValue(name: string) {
+    // TEMP: assume all zero values are 0
+    this.bindings.set(name, 0)
+  }
+
   public assign(name: string, value: any): boolean {
     if (!this.bindings.has(name)) {
       return this.parent ? this.parent.assign(name, value) : false

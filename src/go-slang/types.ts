@@ -100,12 +100,19 @@ export interface BinaryExpression extends Node {
 }
 
 export enum CommandType {
+  VarDeclOp = 'VarDeclOp',
   UnaryOp = 'UnaryOp',
   BinaryOp = 'BinaryOp'
 }
 
 export interface Command {
   type: CommandType
+}
+
+export interface VarDeclOp extends Command {
+  type: CommandType.VarDeclOp
+  zeroValue: boolean
+  name: string
 }
 
 export interface UnaryOp extends Command {
@@ -125,5 +132,6 @@ export type Instruction =
   | BlockStatement
   | ExpressionStatement
   | Expression
+  | VarDeclOp
   | UnaryOp
   | BinaryOp
