@@ -381,21 +381,21 @@ function peg$parse(input, options) {
   var peg$f11 = function(head, tail) { return buildBinaryExpression(head, tail); };
   var peg$f12 = function(head, tail) { return buildBinaryExpression(head, tail); };
   var peg$f13 = function(callee, args) {
-        return { type: "CallExpression", callee, args }
+        return { type: "CallExpression", callee, args: args ?? [] }
       };
   var peg$f14 = function(declarations) {
         return { type: "VariableDeclaration", ...declarations }
       };
   var peg$f15 = function(left, right) {
-        return { left, right: right && right[2] }
+        return { left, right: right ? right[2] : [] }
       };
   var peg$f16 = function(left, right) {
         return { type: "VariableDeclaration", left, right }
       };
   var peg$f17 = function(name, params, body) {
-        return { type: "FunctionDeclaration", name, params, body}
+        return { type: "FunctionDeclaration", name, params, body }
       };
-  var peg$f18 = function(params) { return params };
+  var peg$f18 = function(params) { return params ?? [] };
   var peg$f19 = function(statements) {
         return { type: "Block", statements }
       };

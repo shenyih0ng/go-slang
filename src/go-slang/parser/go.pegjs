@@ -171,7 +171,7 @@ RelationalOperator
 
 CallExpression
     = callee:PrimaryExpression "(" _ args:ExpressionList? ")" EOS {
-        return { type: "CallExpression", callee, args }
+        return { type: "CallExpression", callee, args: args ?? [] }
       }
 
 /* Variable Declaration */
@@ -183,7 +183,7 @@ VariableDeclaration
 
 VarSpec
     = left:IdentifierList _ right:("=" _ ExpressionList)? {
-        return { left, right: right && right[2] }
+        return { left, right: right ? right[2] : [] }
       }
 
 ShortVariableDeclaration
@@ -195,11 +195,11 @@ ShortVariableDeclaration
 
 FunctionDeclaration "function declaration"
     = FUNC_TOKEN __ name:Identifier _ params:Signature _ body:Block EOS {
-        return { type: "FunctionDeclaration", name, params, body}
+        return { type: "FunctionDeclaration", name, params, body }
       }
 
 Signature
-    = "(" _ params:IdentifierList? _ ")" { return params }
+    = "(" _ params:IdentifierList? _ ")" { return params ?? [] }
 
 /* Block */
 
