@@ -1,3 +1,5 @@
+import { Environment } from './lib/env'
+
 export enum NodeType {
   SourceFile = 'SourceFile',
   Block = 'Block',
@@ -5,10 +7,10 @@ export enum NodeType {
   FunctionDeclaration = 'FunctionDeclaration',
   ExpressionStatement = 'ExpressionStatement',
   Assignment = 'Assignment',
-  Identifier = 'Identifier',
-  Literal = 'Literal',
   UnaryExpression = 'UnaryExpression',
-  BinaryExpression = 'BinaryExpression'
+  BinaryExpression = 'BinaryExpression',
+  Identifier = 'Identifier',
+  Literal = 'Literal'
 }
 
 type TopLevelDeclaration = Declaration | FunctionDeclaration
@@ -17,9 +19,11 @@ type Declaration = VariableDeclaration
 
 type Statement = Declaration | Block
 
-type Block = Statement[]
-
-type Expression = Identifier | Literal | UnaryExpression | BinaryExpression
+type Expression =
+  | Identifier
+  | Literal
+  | UnaryExpression
+  | BinaryExpression
 
 export interface Node {
   type: NodeType
@@ -38,14 +42,14 @@ export interface VariableDeclaration extends Node {
 
 export interface FunctionDeclaration extends Node {
   type: NodeType.FunctionDeclaration
-  name: string
-  params: string[]
-  body: BlockStatement
+  name: Identifier
+  params: Identifier[]
+  body: Block
 }
 
-export interface BlockStatement extends Node {
+export interface Block extends Node {
   type: NodeType.Block
-  body: Statement[]
+  statements: Statement[]
 }
 
 export interface ExpressionStatement extends Node {
@@ -99,14 +103,34 @@ export interface BinaryExpression extends Node {
   right: Expression
 }
 
+export interface CallExpression extends Node {
+  type: NodeType.CallExpression
+  callee: Identifier
+  args: Expression[]
+}
+
 export enum CommandType {
+  FuncDeclOp = 'FuncDeclOp',
   VarDeclOp = 'VarDeclOp',
   UnaryOp = 'UnaryOp',
-  BinaryOp = 'BinaryOp'
+  BinaryOp = 'BinaryOp',
+  EnvOp = 'EnvOp',
 }
 
 export interface Command {
   type: CommandType
+}
+
+export interface FuncDeclOp extends Command {
+  type: CommandType.FuncDeclOp
+  name: string
+  params: string[]
+  body: Block
+}
+
+export interface EnvOp extends Command {
+  type: CommandType.EnvOp
+  env: Environment
 }
 
 export interface VarDeclOp extends Command {
@@ -125,13 +149,20 @@ export interface BinaryOp extends Command {
   operator: BinaryOperator
 }
 
+export interface EnvOp extends Command {
+  type: CommandType.EnvOp
+  env: Environment
+}
+
 export type Instruction =
   | SourceFile
   | VariableDeclaration
   | FunctionDeclaration
-  | BlockStatement
+  | Block
   | ExpressionStatement
   | Expression
+  | FuncDeclOp
   | VarDeclOp
   | UnaryOp
   | BinaryOp
+  | EnvOp

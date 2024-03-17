@@ -8,8 +8,12 @@ import { zip } from './lib/utils'
 import {
   BinaryExpression,
   BinaryOp,
+  Block,
   CommandType,
+  EnvOp,
   ExpressionStatement,
+  FuncDeclOp,
+  FunctionDeclaration,
   Identifier,
   Instruction,
   Literal,
@@ -38,7 +42,8 @@ export function evaluate(program: SourceFile, context: Context): Value {
       context.errors.push(new UnknownInstructionError(inst.type))
       return undefined
     }
-    interpreter[inst.type](inst, C, S, E)
+
+    E = interpreter[inst.type](inst, C, S, E) ?? E
   }
 
   // return the top of the stash
@@ -46,10 +51,23 @@ export function evaluate(program: SourceFile, context: Context): Value {
 }
 
 const interpreter: {
-  [key: string]: (inst: Instruction, C: Control, S: Stash, E: Environment) => void
+  [key: string]: (inst: Instruction, C: Control, S: Stash, E: Environment) => void | Environment
 } = {
   SourceFile: (inst: SourceFile, C, _S, _E) =>
     inst.topLevelDecls.reverse().forEach(decl => C.push(decl)),
+
+  FunctionDeclaration: ({ name: id, params, body }: FunctionDeclaration, C, _S, _E) =>
+    C.push({
+      type: CommandType.FuncDeclOp,
+      name: id.name,
+      params: params.map(id => id.name),
+      body: body
+    }),
+
+  Block: ({ statements }: Block, C, _S, E) => {
+    C.pushR(...statements, { type: CommandType.EnvOp, env: E })
+    return E.extend({})
+  },
 
   VariableDeclaration: (inst: VariableDeclaration, C, _S, _E) => {
     const ids = inst.left.reverse() // reverse the identifiers to preserve order in Control stack
@@ -89,6 +107,14 @@ const interpreter: {
 
   ExpressionStatement: (inst: ExpressionStatement, C, _S, _E) => C.push(inst.expression),
 
+  FuncDeclOp: (inst: FuncDeclOp, _C, _S, E) =>
+    E.declare(inst.name, {
+      type: CommandType.ClosureOp,
+      params: inst.params,
+      body: inst.body,
+      env: E
+    }),
+
   VarDeclOp: (inst: VarDeclOp, _C, S, E) =>
     inst.zeroValue ? E.declareZeroValue(inst.name) : E.declare(inst.name, S.pop()),
 
@@ -96,5 +122,7 @@ const interpreter: {
     const right = S.pop()
     const left = S.pop()
     S.push(evaluateBinaryOp(inst.operator, left, right))
-  }
+  },
+
+  EnvOp: ({ env }: EnvOp, _C, _S, E) => (E = env),
 }
