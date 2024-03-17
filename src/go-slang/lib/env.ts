@@ -38,11 +38,11 @@ export class Environment {
   }
 }
 
-const predeclaredIdentifiers = {
+const PREDECLARED_IDENTIFIERS = {
   true: true,
   false: false
 }
 
 export function createGlobalEnvironment(): Environment {
-  return new Environment({ ...predeclaredIdentifiers })
+  return new Environment({ ...PREDECLARED_IDENTIFIERS })
 }
