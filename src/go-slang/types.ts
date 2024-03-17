@@ -5,6 +5,7 @@ export enum NodeType {
   FunctionDeclaration = 'FunctionDeclaration',
   ExpressionStatement = 'ExpressionStatement',
   Assignment = 'Assignment',
+  Identifier = 'Identifier',
   Literal = 'Literal',
   UnaryExpression = 'UnaryExpression',
   BinaryExpression = 'BinaryExpression'
@@ -18,7 +19,7 @@ type Statement = Declaration | Block
 
 type Block = Statement[]
 
-type Expression = Literal | UnaryExpression | BinaryExpression
+type Expression = Identifier | Literal | UnaryExpression | BinaryExpression
 
 export interface Node {
   type: NodeType
@@ -31,7 +32,7 @@ export interface SourceFile extends Node {
 
 export interface VariableDeclaration extends Node {
   type: NodeType.VariableDeclaration
-  left: string[]
+  left: Identifier[]
   right: Expression[]
 }
 
@@ -56,6 +57,11 @@ export interface Assignment extends Node {
   type: NodeType.Assignment
   left: Expression[]
   right: Expression[]
+}
+
+export interface Identifier extends Node {
+  type: NodeType.Identifier
+  name: string
 }
 
 export interface Literal extends Node {
