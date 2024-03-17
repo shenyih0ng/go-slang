@@ -1421,22 +1421,20 @@ function peg$parse(input, options) {
       if (s2 !== peg$FAILED) {
         s3 = peg$parse_();
         s4 = peg$parseExpressionList();
-        if (s4 !== peg$FAILED) {
-          if (input.charCodeAt(peg$currPos) === 41) {
-            s5 = peg$c1;
-            peg$currPos++;
-          } else {
-            s5 = peg$FAILED;
-            if (peg$silentFails === 0) { peg$fail(peg$e1); }
-          }
-          if (s5 !== peg$FAILED) {
-            s6 = peg$parseEOS();
-            peg$savedPos = s0;
-            s0 = peg$f13(s1, s4);
-          } else {
-            peg$currPos = s0;
-            s0 = peg$FAILED;
-          }
+        if (s4 === peg$FAILED) {
+          s4 = null;
+        }
+        if (input.charCodeAt(peg$currPos) === 41) {
+          s5 = peg$c1;
+          peg$currPos++;
+        } else {
+          s5 = peg$FAILED;
+          if (peg$silentFails === 0) { peg$fail(peg$e1); }
+        }
+        if (s5 !== peg$FAILED) {
+          s6 = peg$parseEOS();
+          peg$savedPos = s0;
+          s0 = peg$f13(s1, s4);
         } else {
           peg$currPos = s0;
           s0 = peg$FAILED;
