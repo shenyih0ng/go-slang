@@ -20,6 +20,7 @@ import {
   Identifier,
   Instruction,
   Literal,
+  NodeType,
   SourceFile,
   UnaryExpression,
   UnaryOp,
@@ -30,13 +31,19 @@ import {
 type Control = Stack<Instruction>
 type Stash = Stack<any>
 
+const CALL_MAIN: CallExpression = {
+  type: NodeType.CallExpression,
+  callee: { type: NodeType.Identifier, name: 'main' },
+  args: []
+}
+
 export function evaluate(program: SourceFile, context: Context): Value {
   const C = new Stack<Instruction>()
   const S = new Stack<any>()
   let E = createGlobalEnvironment()
 
-  // push the program onto the control stack
-  C.push(program)
+  // start the program by calling `main`
+  C.pushR(program, CALL_MAIN)
 
   while (!C.isEmpty()) {
     const inst = C.pop() as Instruction
