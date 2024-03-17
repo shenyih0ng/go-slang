@@ -59,7 +59,8 @@ ExpressionStatement
      }
 
 Expression
-    = RelationalExpression 
+    = CallExpression 
+    / RelationalExpression 
 
 PrimaryExpression
     = Identifier
@@ -167,6 +168,11 @@ RelationalOperator
     / "<"
     / ">="
     / ">"
+
+CallExpression
+    = callee:PrimaryExpression "(" _ args:ExpressionList ")" EOS {
+        return { type: "CallExpression", callee, args }
+      }
 
 /* Variable Declaration */
 
