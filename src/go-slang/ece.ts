@@ -65,8 +65,7 @@ export function evaluate(program: SourceFile, context: Context): Value {
 const interpreter: {
   [key: string]: (inst: Instruction, C: Control, S: Stash, E: Environment) => void | Environment
 } = {
-  SourceFile: (inst: SourceFile, C, _S, _E) =>
-    inst.topLevelDecls.reverse().forEach(decl => C.push(decl)),
+  SourceFile: ({ topLevelDecls }: SourceFile, C, _S, _E) => C.pushR(...topLevelDecls),
 
   FunctionDeclaration: ({ name: id, params, body }: FunctionDeclaration, C, _S, _E) =>
     C.push({
@@ -81,20 +80,21 @@ const interpreter: {
     return E.extend({})
   },
 
-  VariableDeclaration: (inst: VariableDeclaration, C, _S, _E) => {
-    const ids = inst.left.reverse() // reverse the identifiers to preserve order in Control stack
-    const exprs = inst.right.reverse() // reverse the expressions to preserve order in Control stack
-
-    if (inst.right.length === 0) {
+  VariableDeclaration: ({ left, right }: VariableDeclaration, C, _S, _E) => {
+    if (right.length === 0) {
       // if there are no right-hand side expressions, we declare zero values
-      ids.forEach(id => C.push({ type: CommandType.VarDeclOp, name: id.name, zeroValue: true }))
+      const zvDecls = left.map(({ name }) => ({
+        type: CommandType.VarDeclOp,
+        name,
+        zeroValue: true
+      })) as Instruction[]
+      C.pushR(...zvDecls)
       return
     }
 
-    zip(ids, exprs).forEach(([{ name }, expr]) => {
-      C.push({ type: CommandType.VarDeclOp, name, zeroValue: false })
-      C.push(expr)
-    })
+    zip(left, right).forEach(([{ name }, expr]) =>
+      C.pushR(expr, { type: CommandType.VarDeclOp, name, zeroValue: false })
+    )
   },
 
   Assignment: ({ left, right }: Assignment, C, S, E) =>
@@ -108,21 +108,16 @@ const interpreter: {
 
   Identifier: (inst: Identifier, _C, S, E) => S.push(E.lookup(inst.name)),
 
-  UnaryExpression: (inst: UnaryExpression, C, _S, _E) => {
-    C.push({ type: CommandType.UnaryOp, operator: inst.operator })
-    C.push(inst.argument)
-  },
+  UnaryExpression: (inst: UnaryExpression, C, _S, _E) =>
+    C.pushR(inst.argument, { type: CommandType.UnaryOp, operator: inst.operator }),
 
   UnaryOp: (inst: UnaryOp, _C, S, _E) => {
     const operand = S.pop()
     S.push(inst.operator === '-' ? -operand : operand)
   },
 
-  BinaryExpression: (inst: BinaryExpression, C, _S, _E) => {
-    C.push({ type: CommandType.BinaryOp, operator: inst.operator })
-    C.push(inst.right)
-    C.push(inst.left)
-  },
+  BinaryExpression: (inst: BinaryExpression, C, _S, _E) =>
+    C.pushR(inst.left, inst.right, { type: CommandType.BinaryOp, operator: inst.operator }),
 
   CallExpression: ({ callee, args }: CallExpression, C, _S, _E) =>
     C.pushR(callee, ...args, { type: CommandType.CallOp, arity: args.length }),
@@ -145,8 +140,7 @@ const interpreter: {
   },
 
   BinaryOp: (inst: BinaryOp, _C, S, _E) => {
-    const right = S.pop()
-    const left = S.pop()
+    const [left, right] = S.popNR(2)
     S.push(evaluateBinaryOp(inst.operator, left, right))
   },
 
