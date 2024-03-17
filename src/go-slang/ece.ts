@@ -6,6 +6,8 @@ import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment, createGlobalEnvironment } from './lib/env'
 import { zip } from './lib/utils'
 import {
+  AssignOp,
+  Assignment,
   BinaryExpression,
   BinaryOp,
   Block,
@@ -95,6 +97,13 @@ const interpreter: {
     })
   },
 
+  Assignment: ({ left, right }: Assignment, C, S, E) =>
+    zip(left, right).forEach(([leftExpr, rightExpr]) => {
+      if (leftExpr.type === NodeType.Identifier) {
+        C.pushR(rightExpr, { type: CommandType.AssignOp, name: leftExpr.name })
+      }
+    }),
+
   Literal: (inst: Literal, _C, S, _E) => S.push(inst.value),
 
   Identifier: (inst: Identifier, _C, S, E) => S.push(E.lookup(inst.name)),
@@ -130,6 +139,10 @@ const interpreter: {
 
   VarDeclOp: (inst: VarDeclOp, _C, S, E) =>
     inst.zeroValue ? E.declareZeroValue(inst.name) : E.declare(inst.name, S.pop()),
+
+  AssignOp: ({ name }: AssignOp, _C, S, E) => {
+    E.assign(name, S.pop())
+  },
 
   BinaryOp: (inst: BinaryOp, _C, S, _E) => {
     const right = S.pop()

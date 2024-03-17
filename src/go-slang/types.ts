@@ -25,6 +25,7 @@ type Expression =
   | Literal
   | UnaryExpression
   | BinaryExpression
+  | Assignment
   | CallExpression
 
 export interface Node {
@@ -115,6 +116,7 @@ export enum CommandType {
   FuncDeclOp = 'FuncDeclOp',
   ClosureOp = 'Closure',
   VarDeclOp = 'VarDeclOp',
+  AssignOp = 'AssignOp',
   UnaryOp = 'UnaryOp',
   BinaryOp = 'BinaryOp',
   EnvOp = 'EnvOp',
@@ -143,6 +145,11 @@ export interface ClosureOp extends Command {
 export interface VarDeclOp extends Command {
   type: CommandType.VarDeclOp
   zeroValue: boolean
+  name: string
+}
+
+export interface AssignOp extends Command {
+  type: CommandType.AssignOp
   name: string
 }
 
@@ -176,6 +183,7 @@ export type Instruction =
   | FuncDeclOp
   | ClosureOp
   | VarDeclOp
+  | AssignOp
   | UnaryOp
   | BinaryOp
   | CallOp
