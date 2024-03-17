@@ -170,7 +170,7 @@ RelationalOperator
     / ">"
 
 CallExpression
-    = callee:PrimaryExpression "(" _ args:ExpressionList ")" EOS {
+    = callee:PrimaryExpression "(" _ args:ExpressionList? ")" EOS {
         return { type: "CallExpression", callee, args }
       }
 
