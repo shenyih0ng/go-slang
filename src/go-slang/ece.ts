@@ -9,6 +9,9 @@ import {
   BinaryExpression,
   BinaryOp,
   Block,
+  CallExpression,
+  CallOp,
+  ClosureOp,
   CommandType,
   EnvOp,
   ExpressionStatement,
@@ -105,6 +108,9 @@ const interpreter: {
     C.push(inst.left)
   },
 
+  CallExpression: ({ callee, args }: CallExpression, C, _S, _E) =>
+    C.pushR(callee, ...args, { type: CommandType.CallOp, arity: args.length }),
+
   ExpressionStatement: (inst: ExpressionStatement, C, _S, _E) => C.push(inst.expression),
 
   FuncDeclOp: (inst: FuncDeclOp, _C, _S, E) =>
@@ -124,5 +130,15 @@ const interpreter: {
     S.push(evaluateBinaryOp(inst.operator, left, right))
   },
 
-  EnvOp: ({ env }: EnvOp, _C, _S, E) => (E = env),
+  CallOp: (inst: CallOp, C, S, E) => {
+    const values = S.popNR(inst.arity)
+    const { params, body: callee } = S.pop() as ClosureOp
+
+    C.pushR(callee, { type: CommandType.EnvOp, env: E })
+
+    // NOTE: we assume that params.length === values.length
+    return E.extend(Object.entries(zip(params, values)))
+  },
+
+  EnvOp: ({ env }: EnvOp, _C, _S, E) => (E = env)
 }

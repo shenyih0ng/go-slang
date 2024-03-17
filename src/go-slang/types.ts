@@ -10,7 +10,8 @@ export enum NodeType {
   UnaryExpression = 'UnaryExpression',
   BinaryExpression = 'BinaryExpression',
   Identifier = 'Identifier',
-  Literal = 'Literal'
+  Literal = 'Literal',
+  CallExpression = 'CallExpression'
 }
 
 type TopLevelDeclaration = Declaration | FunctionDeclaration
@@ -24,6 +25,7 @@ type Expression =
   | Literal
   | UnaryExpression
   | BinaryExpression
+  | CallExpression
 
 export interface Node {
   type: NodeType
@@ -111,10 +113,12 @@ export interface CallExpression extends Node {
 
 export enum CommandType {
   FuncDeclOp = 'FuncDeclOp',
+  ClosureOp = 'Closure',
   VarDeclOp = 'VarDeclOp',
   UnaryOp = 'UnaryOp',
   BinaryOp = 'BinaryOp',
   EnvOp = 'EnvOp',
+  CallOp = 'CallOp'
 }
 
 export interface Command {
@@ -128,8 +132,11 @@ export interface FuncDeclOp extends Command {
   body: Block
 }
 
-export interface EnvOp extends Command {
-  type: CommandType.EnvOp
+export interface ClosureOp extends Command {
+  type: CommandType.ClosureOp
+  name: string
+  params: string[]
+  body: Block
   env: Environment
 }
 
@@ -149,6 +156,11 @@ export interface BinaryOp extends Command {
   operator: BinaryOperator
 }
 
+export interface CallOp extends Command {
+  type: CommandType.CallOp
+  arity: number
+}
+
 export interface EnvOp extends Command {
   type: CommandType.EnvOp
   env: Environment
@@ -162,7 +174,9 @@ export type Instruction =
   | ExpressionStatement
   | Expression
   | FuncDeclOp
+  | ClosureOp
   | VarDeclOp
   | UnaryOp
   | BinaryOp
+  | CallOp
   | EnvOp
