@@ -1,7 +1,8 @@
 import { Context } from '..'
 import { Stack } from '../cse-machine/utils'
+import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import { Value } from '../types'
-import { UnknownInstructionError } from './error'
+import { UndefinedError, UnknownInstructionError } from './error'
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment, createGlobalEnvironment } from './lib/env'
 import { zip } from './lib/utils'
@@ -133,7 +134,14 @@ const interpreter: {
 
   Literal: (inst: Literal, _C, S, _E) => S.push(inst.value),
 
-  Identifier: (inst: Identifier, _C, S, E) => S.push(E.lookup(inst.name)),
+  Identifier: (inst: Identifier, _C, S, E) => {
+    const value = E.lookup(inst.name)
+    if (value === null) {
+      return IResult.error(new UndefinedError(inst.name))
+    }
+    S.push(value)
+    return
+  },
 
   UnaryExpression: (inst: UnaryExpression, C, _S, _E) =>
     C.pushR(inst.argument, { type: CommandType.UnaryOp, operator: inst.operator }),
