@@ -175,7 +175,10 @@ const interpreter: {
     inst.zeroValue ? E.declareZeroValue(inst.name) : E.declare(inst.name, S.pop()),
 
   AssignOp: ({ name }: AssignOp, _C, S, E) => {
-    E.assign(name, S.pop())
+    if (!E.assign(name, S.pop())) {
+      return IResult.error(new UndefinedError(name))
+    }
+    return
   },
 
   BinaryOp: (inst: BinaryOp, _C, S, _E) => {
