@@ -166,6 +166,7 @@ export interface BinaryOp extends Command {
 export interface CallOp extends Command {
   type: CommandType.CallOp
   arity: number
+  calleeName: string
 }
 
 export interface EnvOp extends Command {

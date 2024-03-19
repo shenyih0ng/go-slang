@@ -2,7 +2,7 @@ import { Context } from '..'
 import { Stack } from '../cse-machine/utils'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import { Value } from '../types'
-import { UndefinedError, UnknownInstructionError } from './error'
+import { FuncArityError, UndefinedError, UnknownInstructionError } from './error'
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment, createGlobalEnvironment } from './lib/env'
 import { zip } from './lib/utils'
@@ -155,7 +155,11 @@ const interpreter: {
     C.pushR(inst.left, inst.right, { type: CommandType.BinaryOp, operator: inst.operator }),
 
   CallExpression: ({ callee, args }: CallExpression, C, _S, _E) =>
-    C.pushR(callee, ...args, { type: CommandType.CallOp, arity: args.length }),
+    C.pushR(callee, ...args, {
+      type: CommandType.CallOp,
+      calleeName: callee.name,
+      arity: args.length
+    }),
 
   ExpressionStatement: (inst: ExpressionStatement, C, _S, _E) => C.push(inst.expression),
 
@@ -179,9 +183,13 @@ const interpreter: {
     S.push(evaluateBinaryOp(inst.operator, left, right))
   },
 
-  CallOp: (inst: CallOp, C, S, E) => {
-    const values = S.popNR(inst.arity)
+  CallOp: ({ calleeName, arity }: CallOp, C, S, E) => {
+    const values = S.popNR(arity)
     const { params, body: callee } = S.pop() as ClosureOp
+
+    if (params.length !== values.length) {
+      return IResult.error(new FuncArityError(calleeName, values.length, params.length))
+    }
 
     C.pushR(callee, { type: CommandType.EnvOp, env: E })
     return IResult.ok(E.extend(Object.entries(zip(params, values))))
