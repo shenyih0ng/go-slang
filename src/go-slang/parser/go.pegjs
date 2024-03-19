@@ -1,4 +1,12 @@
 {{
+    function extractList(list, index) {
+        return list.map(element => element[index]);
+    }
+    
+    function buildList(head, tail, index) {
+        return [head].concat(extractList(tail, index));
+    }
+
     function buildInteger(str, base) {
         // note: we discard the "_" delimiters
         return parseInt(str.replaceAll("_", ""), base)
@@ -23,14 +31,27 @@
     }
 }}
 
-Start
-    = Statement 
+SourceFile
+    = topLevelDecls: TopLevelDeclaration* {
+        return { type: "SourceFile", topLevelDecls }
+      }
+
+TopLevelDeclaration
+    = Declaration
+    / FunctionDeclaration
 
 Statement
-    =  SimpleStatement
+    = Declaration
+    / SimpleStatement
+    / Block
+
+Declaration
+    = VariableDeclaration
 
 SimpleStatement
-    = ExpressionStatement
+    = ShortVariableDeclaration
+    / Assignment
+    / ExpressionStatement
 
 ExpressionStatement
    = expression: Expression { 
@@ -38,11 +59,26 @@ ExpressionStatement
      }
 
 Expression
-    = RelationalExpression 
+    = CallExpression 
+    / RelationalExpression 
 
 PrimaryExpression
-    = Literal
+    = Identifier
+    / Literal
     / "(" _ expression: Expression _ ")" { return expression }
+
+Identifier
+    = !Keyword Letter IdentifierPart* { 
+        return { type: "Identifier", name: text() } 
+      }
+
+Letter
+    = UnicodeLetter
+    / "_"
+
+IdentifierPart
+    = Letter
+    / UnicodeDigit
 
 Literal
     = BasicLit
@@ -128,38 +164,90 @@ RelationalExpression
 RelationalOperator
     = "=="
     / "!="
-    / "<=" 
-    / "<" 
+    / "<="
+    / "<"
     / ">="
-    / ">" 
+    / ">"
+
+CallExpression
+    = callee:PrimaryExpression "(" _ args:ExpressionList? ")" EOS {
+        return { type: "CallExpression", callee, args: args ?? [] }
+      }
+
+/* Variable Declaration */
+
+VariableDeclaration
+    = VAR_TOKEN __ declarations:VarSpec EOS {
+        return { type: "VariableDeclaration", ...declarations }
+      }
+
+VarSpec
+    = left:IdentifierList _ right:("=" _ ExpressionList)? {
+        return { left, right: right ? right[2] : [] }
+      }
+
+ShortVariableDeclaration
+    = left:IdentifierList _ ":=" _ right:ExpressionList EOS {
+        return { type: "VariableDeclaration", left, right }
+      }
+
+/* Function Declaration */
+
+FunctionDeclaration "function declaration"
+    = FUNC_TOKEN __ name:Identifier _ params:Signature _ body:Block EOS {
+        return { type: "FunctionDeclaration", name, params, body }
+      }
+
+Signature
+    = "(" _ params:IdentifierList? _ ")" { return params ?? [] }
+
+/* Block */
+
+Block "block"
+    = "{" _ statements:Statement* _ "}" EOS {
+        return { type: "Block", statements }
+      }
+
+/* Assignment */
+
+Assignment
+    = left:ExpressionList _ "=" _ right:ExpressionList EOS {
+        return { type: "Assignment", left, right }
+      }
+
+IdentifierList
+    = head:Identifier _ tail:(_ "," _ Identifier)* { return buildList(head, tail, 3); }
+
+ExpressionList
+    = head:Expression _ tail:(_ "," _ Expression)* { return buildList(head, tail, 3); }
 
 /* Tokens */
 
-BREAK_TOKEN         = "break"
-DEFAULT_TOKEN       = "default"
-FUNC_TOKEN          = "func"
-INTERFACE_TOKEN     = "interface"
-SELECT_TOKEN        = "select"
-CASE_TOKEN          = "case"
-DEFER_TOKEN         = "defer"
-GO_TOKEN            = "go"
-MAP_TOKEN           = "map"
-STRUCT_TOKEN        = "struct"
-CHAN_TOKEN          = "chan"
-ELSE_TOKEN          = "else"
-GOTO_TOKEN          = "goto"
-PACKAGE_TOKEN       = "package"
-SWITCH_TOKEN        = "switch"
-CONST_TOKEN         = "const"
-FALLTHROUGH_TOKEN   = "fallthrough"
-IF_TOKEN            = "if"
-RANGE_TOKEN         = "range"
-TYPE_TOKEN          = "type"
-CONTINUE_TOKEN      = "continue"
-FOR_TOKEN           = "for"
-IMPORT_TOKEN        = "import"
-RETURN_TOKEN        = "return"
-VAR_TOKEN           = "var"
+BREAK_TOKEN         = "break"          !IdentifierPart
+DEFAULT_TOKEN       = "default"        !IdentifierPart
+FUNC_TOKEN          = "func"           !IdentifierPart
+INTERFACE_TOKEN     = "interface"      !IdentifierPart
+SELECT_TOKEN        = "select"         !IdentifierPart
+CASE_TOKEN          = "case"           !IdentifierPart
+DEFER_TOKEN         = "defer"          !IdentifierPart
+GO_TOKEN            = "go"             !IdentifierPart
+MAP_TOKEN           = "map"            !IdentifierPart
+STRUCT_TOKEN        = "struct"         !IdentifierPart
+CHAN_TOKEN          = "chan"           !IdentifierPart
+ELSE_TOKEN          = "else"           !IdentifierPart
+GOTO_TOKEN          = "goto"           !IdentifierPart
+PACKAGE_TOKEN       = "package"        !IdentifierPart
+SWITCH_TOKEN        = "switch"         !IdentifierPart
+CONST_TOKEN         = "const"          !IdentifierPart
+FALLTHROUGH_TOKEN   = "fallthrough"    !IdentifierPart
+IF_TOKEN            = "if"             !IdentifierPart
+RANGE_TOKEN         = "range"          !IdentifierPart
+TYPE_TOKEN          = "type"           !IdentifierPart
+CONTINUE_TOKEN      = "continue"       !IdentifierPart
+FOR_TOKEN           = "for"            !IdentifierPart
+IMPORT_TOKEN        = "import"         !IdentifierPart
+RETURN_TOKEN        = "return"         !IdentifierPart
+VAR_TOKEN           = "var"            !IdentifierPart
 
 Keyword
     = BREAK_TOKEN    
@@ -189,6 +277,16 @@ Keyword
     / VAR_TOKEN   
 
 /* Separators */
+
+EOS
+  = _ LineTerminatorSequence?
+
+LineTerminatorSequence "end of line"
+  = "\n"
+  / "\r\n"
+  / "\r"
+  / "\u2028"
+  / "\u2029"
 
 _  "whitespace" = [ \t\r\n]* // optional whitespace
 __ "whitespace" = [ \t\r\n]+ // required whitespace

@@ -1,5 +1,5 @@
 import * as es from 'estree'
-import { uniqueId } from 'lodash'
+import { range, uniqueId } from 'lodash'
 
 import { Context } from '..'
 import * as errors from '../errors/errors'
@@ -35,8 +35,39 @@ export class Stack<T> implements IStack<T> {
     }
   }
 
+  /**
+   * Pushes items onto the stack in reverse order.
+   * The first item in the argument list will be at the top of the stack.
+   *
+   * @param items items to be pushed onto the stack
+   */
+  public pushR(...items: T[]): void {
+    items.reverse().map(item => this.storage.push(item))
+  }
+
   public pop(): T | undefined {
     return this.storage.pop()
+  }
+
+  /**
+   * Pops n items from the stack.
+   *
+   * @param n number of items to pop from the stack
+   * @returns an array of the popped items
+   */
+  public popN(n: number): (T | undefined)[] {
+    return range(n).map(() => this.storage.pop())
+  }
+
+  /**
+   * Pop n items from the stack in reverse order.
+   * The first item in the returned array will be the last item popped from the stack.
+   *
+   * @param n number of items to pop from the stack
+   * @returns an array of the popped items in reverse order
+   */
+  public popNR(n: number): (T | undefined)[] {
+    return this.popN(n).reverse()
   }
 
   public peek(): T | undefined {
