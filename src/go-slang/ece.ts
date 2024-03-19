@@ -134,25 +134,25 @@ const interpreter: {
 
   Literal: (inst: Literal, _C, S, _E) => S.push(inst.value),
 
-  Identifier: (inst: Identifier, _C, S, E) => {
-    const value = E.lookup(inst.name)
+  Identifier: ({ name }: Identifier, _C, S, E) => {
+    const value = E.lookup(name)
     if (value === null) {
-      return IResult.error(new UndefinedError(inst.name))
+      return IResult.error(new UndefinedError(name))
     }
     S.push(value)
     return
   },
 
-  UnaryExpression: (inst: UnaryExpression, C, _S, _E) =>
-    C.pushR(inst.argument, { type: CommandType.UnaryOp, operator: inst.operator }),
+  UnaryExpression: ({ argument, operator }: UnaryExpression, C, _S, _E) =>
+    C.pushR(argument, { type: CommandType.UnaryOp, operator }),
 
-  UnaryOp: (inst: UnaryOp, _C, S, _E) => {
+  UnaryOp: ({ operator }: UnaryOp, _C, S, _E) => {
     const operand = S.pop()
-    S.push(inst.operator === '-' ? -operand : operand)
+    S.push(operator === '-' ? -operand : operand)
   },
 
-  BinaryExpression: (inst: BinaryExpression, C, _S, _E) =>
-    C.pushR(inst.left, inst.right, { type: CommandType.BinaryOp, operator: inst.operator }),
+  BinaryExpression: ({ left, right, operator }: BinaryExpression, C, _S, _E) =>
+    C.pushR(left, right, { type: CommandType.BinaryOp, operator: operator }),
 
   CallExpression: ({ callee, args }: CallExpression, C, _S, _E) =>
     C.pushR(callee, ...args, {
@@ -161,18 +161,14 @@ const interpreter: {
       arity: args.length
     }),
 
-  ExpressionStatement: (inst: ExpressionStatement, C, _S, _E) => C.push(inst.expression),
+  ExpressionStatement: ({ expression }: ExpressionStatement, C, _S, _E) =>
+    C.pushR(expression, { type: CommandType.PopSOp }),
 
-  FuncDeclOp: (inst: FuncDeclOp, _C, _S, E) =>
-    E.declare(inst.name, {
-      type: CommandType.ClosureOp,
-      params: inst.params,
-      body: inst.body,
-      env: E
-    }),
+  FuncDeclOp: ({ name, params, body }: FuncDeclOp, _C, _S, E) =>
+    E.declare(name, { type: CommandType.ClosureOp, params, body, env: E }),
 
-  VarDeclOp: (inst: VarDeclOp, _C, S, E) =>
-    inst.zeroValue ? E.declareZeroValue(inst.name) : E.declare(inst.name, S.pop()),
+  VarDeclOp: ({ name, zeroValue }: VarDeclOp, _C, S, E) =>
+    zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop()),
 
   AssignOp: ({ name }: AssignOp, _C, S, E) => {
     if (!E.assign(name, S.pop())) {
@@ -181,9 +177,9 @@ const interpreter: {
     return
   },
 
-  BinaryOp: (inst: BinaryOp, _C, S, _E) => {
+  BinaryOp: ({ operator }: BinaryOp, _C, S, _E) => {
     const [left, right] = S.popNR(2)
-    S.push(evaluateBinaryOp(inst.operator, left, right))
+    S.push(evaluateBinaryOp(operator, left, right))
   },
 
   CallOp: ({ calleeName, arity }: CallOp, C, S, E) => {
@@ -198,5 +194,7 @@ const interpreter: {
     return IResult.ok(E.extend(Object.entries(zip(params, values))))
   },
 
-  EnvOp: ({ env }: EnvOp, _C, _S, _E) => IResult.ok(env)
+  EnvOp: ({ env }: EnvOp, _C, _S, _E) => IResult.ok(env),
+
+  PopSOp: (_inst, _C, S, _E) => { S.pop() } // prettier-ignore
 }

@@ -119,8 +119,9 @@ export enum CommandType {
   AssignOp = 'AssignOp',
   UnaryOp = 'UnaryOp',
   BinaryOp = 'BinaryOp',
+  CallOp = 'CallOp',
   EnvOp = 'EnvOp',
-  CallOp = 'CallOp'
+  PopSOp = 'PopSOp'
 }
 
 export interface Command {
@@ -174,6 +175,10 @@ export interface EnvOp extends Command {
   env: Environment
 }
 
+export interface PopSOp extends Command {
+  type: CommandType.PopSOp
+}
+
 export type Instruction =
   | SourceFile
   | VariableDeclaration
@@ -189,3 +194,6 @@ export type Instruction =
   | BinaryOp
   | CallOp
   | EnvOp
+  | PopSOp
+
+export const PopS: PopSOp = { type: CommandType.PopSOp }
