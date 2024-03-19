@@ -1,7 +1,8 @@
 import { Context } from '..'
 import { Stack } from '../cse-machine/utils'
+import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import { Value } from '../types'
-import { UnknownInstructionError } from './error'
+import { FuncArityError, UndefinedError, UnknownInstructionError } from './error'
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment, createGlobalEnvironment } from './lib/env'
 import { zip } from './lib/utils'
@@ -33,6 +34,23 @@ import {
 type Control = Stack<Instruction>
 type Stash = Stack<any>
 
+// IResult is a type that represents the result of an interpreter operation
+class IResult<T, E extends RuntimeSourceError> {
+  private constructor(
+    public readonly ok: boolean,
+    public readonly value?: T,
+    public readonly error?: E
+  ) {}
+
+  public static ok<T, E extends RuntimeSourceError>(value: T): IResult<T, E> {
+    return new IResult(true, value)
+  }
+
+  public static error<_T, E extends RuntimeSourceError>(error: E): IResult<any, E> {
+    return new IResult(false, undefined, error)
+  }
+}
+
 const CALL_MAIN: CallExpression = {
   type: NodeType.CallExpression,
   callee: { type: NodeType.Identifier, name: 'main' },
@@ -55,7 +73,12 @@ export function evaluate(program: SourceFile, context: Context): Value {
       return undefined
     }
 
-    E = interpreter[inst.type](inst, C, S, E) ?? E
+    const result = interpreter[inst.type](inst, C, S, E) ?? IResult.ok(E)
+    if (!result.ok) {
+      context.errors.push(result.error as RuntimeSourceError)
+      return undefined
+    }
+    E = result.value as Environment
   }
 
   // return the top of the stash
@@ -63,7 +86,12 @@ export function evaluate(program: SourceFile, context: Context): Value {
 }
 
 const interpreter: {
-  [key: string]: (inst: Instruction, C: Control, S: Stash, E: Environment) => void | Environment
+  [key: string]: (
+    inst: Instruction,
+    C: Control,
+    S: Stash,
+    E: Environment
+  ) => IResult<Environment, RuntimeSourceError> | void
 } = {
   SourceFile: ({ topLevelDecls }: SourceFile, C, _S, _E) => C.pushR(...topLevelDecls),
 
@@ -77,7 +105,7 @@ const interpreter: {
 
   Block: ({ statements }: Block, C, _S, E) => {
     C.pushR(...statements, { type: CommandType.EnvOp, env: E })
-    return E.extend({})
+    return IResult.ok(E.extend({}))
   },
 
   VariableDeclaration: ({ left, right }: VariableDeclaration, C, _S, _E) => {
@@ -97,7 +125,7 @@ const interpreter: {
     )
   },
 
-  Assignment: ({ left, right }: Assignment, C, S, E) =>
+  Assignment: ({ left, right }: Assignment, C, _S, _E) =>
     zip(left, right).forEach(([leftExpr, rightExpr]) => {
       if (leftExpr.type === NodeType.Identifier) {
         C.pushR(rightExpr, { type: CommandType.AssignOp, name: leftExpr.name })
@@ -106,7 +134,14 @@ const interpreter: {
 
   Literal: (inst: Literal, _C, S, _E) => S.push(inst.value),
 
-  Identifier: (inst: Identifier, _C, S, E) => S.push(E.lookup(inst.name)),
+  Identifier: (inst: Identifier, _C, S, E) => {
+    const value = E.lookup(inst.name)
+    if (value === null) {
+      return IResult.error(new UndefinedError(inst.name))
+    }
+    S.push(value)
+    return
+  },
 
   UnaryExpression: (inst: UnaryExpression, C, _S, _E) =>
     C.pushR(inst.argument, { type: CommandType.UnaryOp, operator: inst.operator }),
@@ -120,7 +155,11 @@ const interpreter: {
     C.pushR(inst.left, inst.right, { type: CommandType.BinaryOp, operator: inst.operator }),
 
   CallExpression: ({ callee, args }: CallExpression, C, _S, _E) =>
-    C.pushR(callee, ...args, { type: CommandType.CallOp, arity: args.length }),
+    C.pushR(callee, ...args, {
+      type: CommandType.CallOp,
+      calleeName: callee.name,
+      arity: args.length
+    }),
 
   ExpressionStatement: (inst: ExpressionStatement, C, _S, _E) => C.push(inst.expression),
 
@@ -136,7 +175,10 @@ const interpreter: {
     inst.zeroValue ? E.declareZeroValue(inst.name) : E.declare(inst.name, S.pop()),
 
   AssignOp: ({ name }: AssignOp, _C, S, E) => {
-    E.assign(name, S.pop())
+    if (!E.assign(name, S.pop())) {
+      return IResult.error(new UndefinedError(name))
+    }
+    return
   },
 
   BinaryOp: (inst: BinaryOp, _C, S, _E) => {
@@ -144,15 +186,17 @@ const interpreter: {
     S.push(evaluateBinaryOp(inst.operator, left, right))
   },
 
-  CallOp: (inst: CallOp, C, S, E) => {
-    const values = S.popNR(inst.arity)
+  CallOp: ({ calleeName, arity }: CallOp, C, S, E) => {
+    const values = S.popNR(arity)
     const { params, body: callee } = S.pop() as ClosureOp
 
-    C.pushR(callee, { type: CommandType.EnvOp, env: E })
+    if (params.length !== values.length) {
+      return IResult.error(new FuncArityError(calleeName, values.length, params.length))
+    }
 
-    // NOTE: we assume that params.length === values.length
-    return E.extend(Object.entries(zip(params, values)))
+    C.pushR(callee, { type: CommandType.EnvOp, env: E })
+    return IResult.ok(E.extend(Object.entries(zip(params, values))))
   },
 
-  EnvOp: ({ env }: EnvOp, _C, _S, E) => (E = env)
+  EnvOp: ({ env }: EnvOp, _C, _S, _E) => IResult.ok(env)
 }
