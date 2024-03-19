@@ -154,5 +154,5 @@ const interpreter: {
     return E.extend(Object.entries(zip(params, values)))
   },
 
-  EnvOp: ({ env }: EnvOp, _C, _S, E) => (E = env)
+  EnvOp: ({ env }: EnvOp, _C, _S, _E) => env
 }
