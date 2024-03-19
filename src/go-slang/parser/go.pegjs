@@ -54,7 +54,7 @@ SimpleStatement
     / ExpressionStatement
 
 ExpressionStatement
-   = expression: Expression { 
+   = expression: Expression EOS { 
         return { type: "ExpressionStatement", expression: expression } 
      }
 

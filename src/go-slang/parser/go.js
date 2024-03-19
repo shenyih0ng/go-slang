@@ -623,15 +623,18 @@ function peg$parse(input, options) {
   }
 
   function peg$parseExpressionStatement() {
-    var s0, s1;
+    var s0, s1, s2;
 
     s0 = peg$currPos;
     s1 = peg$parseExpression();
     if (s1 !== peg$FAILED) {
+      s2 = peg$parseEOS();
       peg$savedPos = s0;
-      s1 = peg$f1(s1);
+      s0 = peg$f1(s1);
+    } else {
+      peg$currPos = s0;
+      s0 = peg$FAILED;
     }
-    s0 = s1;
 
     return s0;
   }
