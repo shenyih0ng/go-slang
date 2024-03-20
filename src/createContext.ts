@@ -644,6 +644,15 @@ export const importBuiltins = (context: Context, externalBuiltIns: CustomBuiltIn
       }
     }
   }
+
+  if (context.chapter === Chapter.GO_1) {
+    // NOTE: we are using this purely for the purpose of console capturing
+    // that `rawDisplay` provides. `raw_display` will NOT be a predeclared
+    // function in the Go ECE runtime.
+    // We are defining as a slang builtin here so that the Go ECE runtime
+    // can get a reference to it via `context.nativeStorage.builtins` map.
+    defineBuiltin(context, 'slangRawDisplay(str, prepend = undefined)', rawDisplay, 1)
+  }
 }
 
 function importPrelude(context: Context) {
