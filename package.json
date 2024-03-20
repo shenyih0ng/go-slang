@@ -51,7 +51,7 @@
     "**/gl": "^6.0.2"
   },
   "scripts": {
-    "build": "yarn docs && tsc --build --force",
+    "build": "yarn docs && yarn build:slang",
     "build:go": "peggy src/go-slang/parser/*.pegjs",
     "build:slang": "yarn build:go && tsc --build --force",
     "eslint": "eslint --ext \".ts,.tsx\" src",
