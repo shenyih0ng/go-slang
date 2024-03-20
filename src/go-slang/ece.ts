@@ -8,11 +8,13 @@ import { Environment, createGlobalEnvironment } from './lib/env'
 import { PREDECLARED_FUNCTIONS } from './lib/predeclared'
 import { zip } from './lib/utils'
 import {
+  ApplyBuiltinOp,
   AssignOp,
   Assignment,
   BinaryExpression,
   BinaryOp,
   Block,
+  BuiltinOp,
   CallExpression,
   CallOp,
   ClosureOp,
@@ -206,8 +208,15 @@ const interpreter: {
 
   CallOp: ({ calleeName, arity }: CallOp, { C, S, E }) => {
     const values = S.popNR(arity)
-    const { params, body: callee } = S.pop() as ClosureOp
+    const op = S.pop() as ClosureOp | BuiltinOp
 
+    if (op.type === CommandType.BuiltinOp) {
+      C.pushR({ type: CommandType.ApplyBuiltinOp, builtinOp: op, values })
+      return
+    }
+
+    // handle ClosureOp
+    const { params, body: callee } = op
     if (params.length !== values.length) {
       return IResult.error(new FuncArityError(calleeName, values.length, params.length))
     }
@@ -216,7 +225,10 @@ const interpreter: {
     return IResult.ok(E.extend(Object.entries(zip(params, values))))
   },
 
+  ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { B }) =>
+    void B.get(id)!(...values),
+
   EnvOp: ({ env }: EnvOp) => IResult.ok(env),
 
-  PopSOp: (_inst, {S}) => { S.pop() } // prettier-ignore
+  PopSOp: (_inst, { S }) => void S.pop()
 }

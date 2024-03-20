@@ -121,7 +121,9 @@ export enum CommandType {
   BinaryOp = 'BinaryOp',
   CallOp = 'CallOp',
   EnvOp = 'EnvOp',
-  PopSOp = 'PopSOp'
+  PopSOp = 'PopSOp',
+  BuiltinOp = 'BuiltinOp',
+  ApplyBuiltinOp = 'ApplyBuiltinOp'
 }
 
 export interface Command {
@@ -141,6 +143,18 @@ export interface ClosureOp extends Command {
   params: string[]
   body: Block
   env: Environment
+}
+
+export interface BuiltinOp extends Command {
+  type: CommandType.BuiltinOp
+  id: number
+  arity?: number
+}
+
+export interface ApplyBuiltinOp extends Command {
+  type: CommandType.ApplyBuiltinOp
+  builtinOp: BuiltinOp
+  values: any[]
 }
 
 export interface VarDeclOp extends Command {
@@ -188,6 +202,8 @@ export type Instruction =
   | Expression
   | FuncDeclOp
   | ClosureOp
+  | BuiltinOp
+  | ApplyBuiltinOp
   | VarDeclOp
   | AssignOp
   | UnaryOp
