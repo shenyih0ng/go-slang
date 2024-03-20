@@ -107,8 +107,7 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
     Context.E = result.value as Environment
   }
 
-  // return the top of the stash
-  return S.pop()
+  return 'Program exited'
 }
 
 const interpreter: {
