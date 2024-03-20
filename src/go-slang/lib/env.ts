@@ -1,3 +1,5 @@
+import { PREDECLARED_IDENTIFIERS } from './predeclared'
+
 type Maybe<T> = T | null
 
 export class Environment {
@@ -36,11 +38,6 @@ export class Environment {
   public extend(bindings: { [key: string]: any }): Environment {
     return new Environment(bindings, this)
   }
-}
-
-const PREDECLARED_IDENTIFIERS = {
-  true: true,
-  false: false
 }
 
 export function createGlobalEnvironment(): Environment {
