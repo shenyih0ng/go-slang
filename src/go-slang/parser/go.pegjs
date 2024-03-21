@@ -61,8 +61,7 @@ ExpressionStatement
      }
 
 Expression
-    = CallExpression 
-    / RelationalExpression 
+    = RelationalExpression
 
 PrimaryExpression
     = Identifier
@@ -128,7 +127,8 @@ HexDigit
     = "_"? [a-fA-F0-9]
  
 UnaryExpression
-    = PrimaryExpression
+    = CallExpression 
+    / PrimaryExpression
     / operator:UnaryOperator argument:UnaryExpression {
         return {type: "UnaryExpression", operator: operator, argument: argument}
  	  }
@@ -138,8 +138,8 @@ UnaryOperator
     / "-"
 
 MultiplicativeExpression
-    = head:UnaryExpression
-      tail:(_ MultiplicativeOperator _ UnaryExpression)*
+    = head: UnaryExpression
+      tail:(__ MultiplicativeOperator __ UnaryExpression)*
       { return buildBinaryExpression(head, tail); }
 
 MultiplicativeOperator
@@ -149,7 +149,7 @@ MultiplicativeOperator
 
 AdditiveExpression
     = head:MultiplicativeExpression
-      tail:(_ AdditiveOperator _ MultiplicativeExpression)*
+      tail:(__ AdditiveOperator __ MultiplicativeExpression)*
       { return buildBinaryExpression(head, tail); }
  
 AdditiveOperator
@@ -160,7 +160,7 @@ AdditiveOperator
 
 RelationalExpression
     = head:AdditiveExpression
-      tail:(_ RelationalOperator _ AdditiveExpression)*
+      tail:(__ RelationalOperator __ AdditiveExpression)*
       { return buildBinaryExpression(head, tail); }
 
 RelationalOperator
@@ -172,7 +172,7 @@ RelationalOperator
     / ">"
 
 CallExpression
-    = callee:PrimaryExpression "(" _ args:ExpressionList? ")" EOS {
+    = callee:PrimaryExpression "(" args:ExpressionList? ")" EOS {
         return { type: "CallExpression", callee, args: args ?? [] }
       }
 
@@ -196,7 +196,7 @@ ShortVariableDeclaration
 /* Function Declaration */
 
 FunctionDeclaration "function declaration"
-    = FUNC_TOKEN __ name:Identifier _ params:Signature _ body:Block EOS {
+    = FUNC_TOKEN ___ name:Identifier _ params:Signature _ body:Block EOS {
         return { type: "FunctionDeclaration", name, params, body }
       }
 
@@ -310,5 +310,6 @@ LineTerminatorSequence "end of line"
   / "\u2028"
   / "\u2029"
 
-_  "whitespace" = [ \t\r\n]* // optional whitespace
-__ "whitespace" = [ \t\r\n]+ // required whitespace
+_   "whitespace" = [ \t\r\n]* // optional whitespace
+__  "whitespace" = [ \t]*     // optional whitespace with no newlines
+___ "whitespace" = [ \t\r\n]+ // required whitespace
