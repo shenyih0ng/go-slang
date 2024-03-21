@@ -6,6 +6,7 @@ export enum NodeType {
   VariableDeclaration = 'VariableDeclaration',
   FunctionDeclaration = 'FunctionDeclaration',
   ReturnStatement = 'ReturnStatement',
+  IfStatement = 'IfStatement',
   ExpressionStatement = 'ExpressionStatement',
   Assignment = 'Assignment',
   UnaryExpression = 'UnaryExpression',
@@ -19,7 +20,9 @@ type TopLevelDeclaration = Declaration | FunctionDeclaration
 
 type Declaration = VariableDeclaration
 
-type Statement = Declaration | ReturnStatement | Block
+type Statement = Declaration | ReturnStatement | IfStatement | Block
+
+type SimpleStatement = ExpressionStatement | Assignment | Declaration
 
 type Expression =
   | Identifier
@@ -54,6 +57,14 @@ export interface FunctionDeclaration extends Node {
 export interface ReturnStatement extends Node {
   type: NodeType.ReturnStatement
   expression: Expression
+}
+
+export interface IfStatement extends Node {
+  type: NodeType.IfStatement
+  stmt: SimpleStatement | null
+  cond: Expression
+  cons: Block
+  alt: IfStatement | Block | null
 }
 
 export interface Block extends Node {
@@ -224,6 +235,7 @@ export type Instruction =
   | Block
   | ExpressionStatement
   | ReturnStatement
+  | IfStatement
   | Expression
   | FuncDeclOp
   | ClosureOp

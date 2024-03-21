@@ -44,6 +44,7 @@ Statement
     = Declaration
     / SimpleStatement
     / ReturnStatement
+    / IfStatement
     / Block
 
 Declaration
@@ -215,6 +216,19 @@ ReturnStatement
     = RETURN_TOKEN _ expression:Expression EOS {
         return { type: "ReturnStatement", expression }
       }
+
+/* If Statement */
+
+IfStatement
+    = IF_TOKEN _ stmt:IfSimpleStatement? _ cond:Expression _ cons:Block _ alt:ElseBranch? EOS {
+        return { type: "IfStatement", stmt, cond, cons, alt }
+      }
+
+IfSimpleStatement
+	= stmt:SimpleStatement ";" { return stmt }
+
+ElseBranch
+	= ELSE_TOKEN _ alt:(Block / (IfStatement)) { return alt }
 
 /* Assignment */
 
