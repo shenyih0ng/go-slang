@@ -399,8 +399,8 @@ function peg$parse(input, options) {
   var peg$f19 = function(statements) {
         return { type: "Block", statements }
       };
-  var peg$f20 = function(expressions) {
-        return { type: "ReturnStatement", expressions }
+  var peg$f20 = function(expression) {
+        return { type: "ReturnStatement", expression }
       };
   var peg$f21 = function(left, right) {
         return { type: "Assignment", left, right }
@@ -1713,7 +1713,7 @@ function peg$parse(input, options) {
     s1 = peg$parseRETURN_TOKEN();
     if (s1 !== peg$FAILED) {
       s2 = peg$parse_();
-      s3 = peg$parseExpressionList();
+      s3 = peg$parseExpression();
       if (s3 !== peg$FAILED) {
         s4 = peg$parseEOS();
         peg$savedPos = s0;

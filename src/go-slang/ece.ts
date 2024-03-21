@@ -136,8 +136,8 @@ const interpreter: {
     return IResult.ok(E.extend({}))
   },
 
-  ReturnStatement: ({ expressions }: ReturnStatement, { C }) =>
-    C.pushR(...expressions, { type: CommandType.PopTillMOp, marker: RetMarker }),
+  ReturnStatement: ({ expression }: ReturnStatement, { C }) =>
+    C.pushR(expression, { type: CommandType.PopTillMOp, marker: RetMarker }),
 
   VariableDeclaration: ({ left, right }: VariableDeclaration, { C }) => {
     if (right.length === 0) {

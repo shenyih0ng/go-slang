@@ -53,7 +53,7 @@ export interface FunctionDeclaration extends Node {
 
 export interface ReturnStatement extends Node {
   type: NodeType.ReturnStatement
-  expressions: Expression[]
+  expression: Expression
 }
 
 export interface Block extends Node {

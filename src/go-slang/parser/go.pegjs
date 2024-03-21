@@ -212,8 +212,8 @@ Block "block"
 /* Return Statement */
 
 ReturnStatement
-    = RETURN_TOKEN _ expressions:ExpressionList EOS {
-        return { type: "ReturnStatement", expressions }
+    = RETURN_TOKEN _ expression:Expression EOS {
+        return { type: "ReturnStatement", expression }
       }
 
 /* Assignment */
