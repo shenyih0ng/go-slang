@@ -228,7 +228,7 @@ const interpreter: {
     }
 
     C.pushR(callee, RetMarker, { type: CommandType.EnvOp, env: E })
-    return IResult.ok(E.extend(Object.entries(zip(params, values))))
+    return IResult.ok(E.extend(Object.fromEntries(zip(params, values))))
   },
 
   ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { B }) =>
