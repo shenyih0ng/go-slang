@@ -43,6 +43,7 @@ TopLevelDeclaration
 Statement
     = Declaration
     / SimpleStatement
+    / ReturnStatement
     / Block
 
 Declaration
@@ -206,6 +207,13 @@ Signature
 Block "block"
     = "{" _ statements:Statement* _ "}" EOS {
         return { type: "Block", statements }
+      }
+
+/* Return Statement */
+
+ReturnStatement
+    = RETURN_TOKEN _ expressions:ExpressionList EOS {
+        return { type: "ReturnStatement", expressions }
       }
 
 /* Assignment */
