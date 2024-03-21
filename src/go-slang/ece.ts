@@ -28,6 +28,9 @@ import {
   Literal,
   NodeType,
   PopS,
+  PopTillMOp,
+  RetMarker,
+  ReturnStatement,
   SourceFile,
   UnaryExpression,
   UnaryOp,
@@ -133,6 +136,9 @@ const interpreter: {
     return IResult.ok(E.extend({}))
   },
 
+  ReturnStatement: ({ expression }: ReturnStatement, { C }) =>
+    C.pushR(expression, { type: CommandType.PopTillMOp, marker: RetMarker }),
+
   VariableDeclaration: ({ left, right }: VariableDeclaration, { C }) => {
     if (right.length === 0) {
       // if there are no right-hand side expressions, we declare zero values
@@ -171,11 +177,6 @@ const interpreter: {
   UnaryExpression: ({ argument, operator }: UnaryExpression, { C }) =>
     C.pushR(argument, { type: CommandType.UnaryOp, operator }),
 
-  UnaryOp: ({ operator }: UnaryOp, { S }) => {
-    const operand = S.pop()
-    S.push(operator === '-' ? -operand : operand)
-  },
-
   BinaryExpression: ({ left, right, operator }: BinaryExpression, { C }) =>
     C.pushR(left, right, { type: CommandType.BinaryOp, operator: operator }),
 
@@ -201,6 +202,11 @@ const interpreter: {
     return
   },
 
+  UnaryOp: ({ operator }: UnaryOp, { S }) => {
+    const operand = S.pop()
+    S.push(operator === '-' ? -operand : operand)
+  },
+
   BinaryOp: ({ operator }: BinaryOp, { S }) => {
     const [left, right] = S.popNR(2)
     S.push(evaluateBinaryOp(operator, left, right))
@@ -221,8 +227,8 @@ const interpreter: {
       return IResult.error(new FuncArityError(calleeName, values.length, params.length))
     }
 
-    C.pushR(callee, { type: CommandType.EnvOp, env: E })
-    return IResult.ok(E.extend(Object.entries(zip(params, values))))
+    C.pushR(callee, RetMarker, { type: CommandType.EnvOp, env: E })
+    return IResult.ok(E.extend(Object.fromEntries(zip(params, values))))
   },
 
   ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { B }) =>
@@ -230,5 +236,11 @@ const interpreter: {
 
   EnvOp: ({ env }: EnvOp) => IResult.ok(env),
 
-  PopSOp: (_inst, { S }) => void S.pop()
+  PopSOp: (_inst, { S }) => void S.pop(),
+
+  PopTillMOp: ({ marker }: PopTillMOp, { C }) => {
+    while (!C.isEmpty() && C.pop() !== marker) {}
+  },
+
+  RetMarker: () => void {}
 }
