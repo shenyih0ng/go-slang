@@ -128,6 +128,7 @@ export enum CommandType {
   CallOp = 'CallOp',
   EnvOp = 'EnvOp',
   PopSOp = 'PopSOp',
+  PopTillMOp = 'PopTillMOp',
   BuiltinOp = 'BuiltinOp',
   ApplyBuiltinOp = 'ApplyBuiltinOp'
 }
@@ -199,6 +200,23 @@ export interface PopSOp extends Command {
   type: CommandType.PopSOp
 }
 
+export const PopS: PopSOp = { type: CommandType.PopSOp }
+
+export interface PopTillMOp extends Command {
+  type: CommandType.PopTillMOp
+  marker: Marker
+}
+
+export enum MarkerType {
+  RetMarker = 'RetMarker'
+}
+
+export interface Marker {
+  type: MarkerType
+}
+
+export const RetMarker = { type: MarkerType.RetMarker }
+
 export type Instruction =
   | SourceFile
   | VariableDeclaration
@@ -218,5 +236,5 @@ export type Instruction =
   | CallOp
   | EnvOp
   | PopSOp
-
-export const PopS: PopSOp = { type: CommandType.PopSOp }
+  | PopTillMOp
+  | Marker
