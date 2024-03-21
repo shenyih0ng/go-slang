@@ -14,6 +14,7 @@ import {
   BinaryExpression,
   BinaryOp,
   Block,
+  BranchOp,
   BuiltinOp,
   CallExpression,
   CallOp,
@@ -24,6 +25,7 @@ import {
   FuncDeclOp,
   FunctionDeclaration,
   Identifier,
+  IfStatement,
   Instruction,
   Literal,
   NodeType,
@@ -139,6 +141,11 @@ const interpreter: {
   ReturnStatement: ({ expression }: ReturnStatement, { C }) =>
     C.pushR(expression, { type: CommandType.PopTillMOp, marker: RetMarker }),
 
+  IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C }) => {
+    const branchOp: BranchOp = { type: CommandType.BranchOp, cons, alt }
+    stmt ? C.pushR(stmt, cond, branchOp) : C.pushR(cond, branchOp)
+  },
+
   VariableDeclaration: ({ left, right }: VariableDeclaration, { C }) => {
     if (right.length === 0) {
       // if there are no right-hand side expressions, we declare zero values
@@ -230,6 +237,9 @@ const interpreter: {
     C.pushR(callee, RetMarker, { type: CommandType.EnvOp, env: E })
     return IResult.ok(E.extend(Object.fromEntries(zip(params, values))))
   },
+
+  BranchOp: ({ cons, alt }: BranchOp, { S, C }) =>
+    void (S.pop() ? C.pushR(cons) : alt && C.pushR(alt)),
 
   ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { B }) =>
     void B.get(id)!(...values),

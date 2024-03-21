@@ -6,6 +6,7 @@ export enum NodeType {
   VariableDeclaration = 'VariableDeclaration',
   FunctionDeclaration = 'FunctionDeclaration',
   ReturnStatement = 'ReturnStatement',
+  IfStatement = 'IfStatement',
   ExpressionStatement = 'ExpressionStatement',
   Assignment = 'Assignment',
   UnaryExpression = 'UnaryExpression',
@@ -19,7 +20,9 @@ type TopLevelDeclaration = Declaration | FunctionDeclaration
 
 type Declaration = VariableDeclaration
 
-type Statement = Declaration | ReturnStatement | Block
+type Statement = Declaration | ReturnStatement | IfStatement | Block
+
+type SimpleStatement = ExpressionStatement | Assignment | Declaration
 
 type Expression =
   | Identifier
@@ -54,6 +57,14 @@ export interface FunctionDeclaration extends Node {
 export interface ReturnStatement extends Node {
   type: NodeType.ReturnStatement
   expression: Expression
+}
+
+export interface IfStatement extends Node {
+  type: NodeType.IfStatement
+  stmt: SimpleStatement | null
+  cond: Expression
+  cons: Block
+  alt: IfStatement | Block | null
 }
 
 export interface Block extends Node {
@@ -119,13 +130,14 @@ export interface CallExpression extends Node {
 }
 
 export enum CommandType {
-  FuncDeclOp = 'FuncDeclOp',
-  ClosureOp = 'Closure',
   VarDeclOp = 'VarDeclOp',
   AssignOp = 'AssignOp',
   UnaryOp = 'UnaryOp',
   BinaryOp = 'BinaryOp',
+  FuncDeclOp = 'FuncDeclOp',
+  ClosureOp = 'Closure',
   CallOp = 'CallOp',
+  BranchOp = 'BranchOp',
   EnvOp = 'EnvOp',
   PopSOp = 'PopSOp',
   PopTillMOp = 'PopTillMOp',
@@ -135,33 +147,6 @@ export enum CommandType {
 
 export interface Command {
   type: CommandType
-}
-
-export interface FuncDeclOp extends Command {
-  type: CommandType.FuncDeclOp
-  name: string
-  params: string[]
-  body: Block
-}
-
-export interface ClosureOp extends Command {
-  type: CommandType.ClosureOp
-  name: string
-  params: string[]
-  body: Block
-  env: Environment
-}
-
-export interface BuiltinOp extends Command {
-  type: CommandType.BuiltinOp
-  id: number
-  arity?: number
-}
-
-export interface ApplyBuiltinOp extends Command {
-  type: CommandType.ApplyBuiltinOp
-  builtinOp: BuiltinOp
-  values: any[]
 }
 
 export interface VarDeclOp extends Command {
@@ -185,10 +170,31 @@ export interface BinaryOp extends Command {
   operator: BinaryOperator
 }
 
+export interface FuncDeclOp extends Command {
+  type: CommandType.FuncDeclOp
+  name: string
+  params: string[]
+  body: Block
+}
+
+export interface ClosureOp extends Command {
+  type: CommandType.ClosureOp
+  name: string
+  params: string[]
+  body: Block
+  env: Environment
+}
+
 export interface CallOp extends Command {
   type: CommandType.CallOp
   arity: number
   calleeName: string
+}
+
+export interface BranchOp extends Command {
+  type: CommandType.BranchOp
+  cons: Block
+  alt: IfStatement | Block | null
 }
 
 export interface EnvOp extends Command {
@@ -205,6 +211,18 @@ export const PopS: PopSOp = { type: CommandType.PopSOp }
 export interface PopTillMOp extends Command {
   type: CommandType.PopTillMOp
   marker: Marker
+}
+
+export interface BuiltinOp extends Command {
+  type: CommandType.BuiltinOp
+  id: number
+  arity?: number
+}
+
+export interface ApplyBuiltinOp extends Command {
+  type: CommandType.ApplyBuiltinOp
+  builtinOp: BuiltinOp
+  values: any[]
 }
 
 export enum MarkerType {
@@ -224,17 +242,19 @@ export type Instruction =
   | Block
   | ExpressionStatement
   | ReturnStatement
+  | IfStatement
   | Expression
-  | FuncDeclOp
-  | ClosureOp
-  | BuiltinOp
-  | ApplyBuiltinOp
   | VarDeclOp
   | AssignOp
   | UnaryOp
   | BinaryOp
+  | FuncDeclOp
+  | ClosureOp
   | CallOp
+  | BranchOp
   | EnvOp
   | PopSOp
   | PopTillMOp
+  | BuiltinOp
+  | ApplyBuiltinOp
   | Marker
