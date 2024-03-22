@@ -32,7 +32,7 @@
 }}
 
 SourceFile
-    = topLevelDecls: TopLevelDeclaration* {
+    = _ topLevelDecls: TopLevelDeclaration* _ {
         return { type: "SourceFile", topLevelDecls }
       }
 
