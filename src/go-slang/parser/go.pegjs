@@ -45,6 +45,7 @@ Statement
     / SimpleStatement
     / ReturnStatement
     / IfStatement
+    / ForStatement
     / Block
 
 Declaration
@@ -229,6 +230,23 @@ IfSimpleStatement
 
 ElseBranch
 	= ELSE_TOKEN _ alt:(Block / (IfStatement)) { return alt }
+
+/* For Statement */
+
+ForStatement
+    = FOR_TOKEN __ form:ForForm? __ block:Block EOS { return { type: "ForStatement", form, block} }
+      
+ForForm
+	= ForClause
+    / ForCondition
+
+ForCondition
+	= expression:Expression { return { type: "ForCondition", expression } }
+
+ForClause
+    = init:SimpleStatement? __ ";" __ cond:Expression? __ ";" __ post:SimpleStatement? {
+        return { type: "ForClause", init, cond, post }
+      }
 
 /* Assignment */
 
