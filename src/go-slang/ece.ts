@@ -22,6 +22,9 @@ import {
   CommandType,
   EnvOp,
   ExpressionStatement,
+  ForEndMarker,
+  ForFormType,
+  ForStatement,
   FuncDeclOp,
   FunctionDeclaration,
   Identifier,
@@ -30,6 +33,7 @@ import {
   Literal,
   NodeType,
   PopS,
+  PopTillM,
   PopTillMOp,
   RetMarker,
   ReturnStatement,
@@ -139,11 +143,25 @@ const interpreter: {
   },
 
   ReturnStatement: ({ expression }: ReturnStatement, { C }) =>
-    C.pushR(expression, { type: CommandType.PopTillMOp, marker: RetMarker }),
+    C.pushR(expression, PopTillM(RetMarker)),
 
   IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C }) => {
     const branchOp: BranchOp = { type: CommandType.BranchOp, cons, alt }
     stmt ? C.pushR(stmt, cond, branchOp) : C.pushR(cond, branchOp)
+  },
+
+  ForStatement: (inst: ForStatement, { C }) => {
+    const { form, block } = inst
+    switch (form.type) {
+      case ForFormType.ForCondition:
+        const branch: BranchOp = {
+          type: CommandType.BranchOp,
+          cons: block,
+          alt: PopTillM(ForEndMarker)
+        }
+        C.pushR(form.expression, branch, inst, ForEndMarker)
+        break
+    }
   },
 
   VariableDeclaration: ({ left, right }: VariableDeclaration, { C }) => {
@@ -252,5 +270,6 @@ const interpreter: {
     while (!C.isEmpty() && C.pop() !== marker) {}
   },
 
-  RetMarker: () => void {}
+  RetMarker: () => void {},
+  ForEndMarker: () => void {}
 }

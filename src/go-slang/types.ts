@@ -7,6 +7,7 @@ export enum NodeType {
   FunctionDeclaration = 'FunctionDeclaration',
   ReturnStatement = 'ReturnStatement',
   IfStatement = 'IfStatement',
+  ForStatement = 'ForStatement',
   ExpressionStatement = 'ExpressionStatement',
   Assignment = 'Assignment',
   UnaryExpression = 'UnaryExpression',
@@ -20,7 +21,7 @@ type TopLevelDeclaration = Declaration | FunctionDeclaration
 
 type Declaration = VariableDeclaration
 
-type Statement = Declaration | ReturnStatement | IfStatement | Block
+type Statement = Declaration | ReturnStatement | IfStatement | ForStatement | Block
 
 type SimpleStatement = ExpressionStatement | Assignment | Declaration
 
@@ -65,6 +66,31 @@ export interface IfStatement extends Node {
   cond: Expression
   cons: Block
   alt: IfStatement | Block | null
+}
+
+type ForForm = ForCondition | ForClause
+
+export enum ForFormType {
+  ForCondition = 'ForCondition',
+  ForClause = 'ForClause'
+}
+
+export interface ForStatement extends Node {
+  type: NodeType.ForStatement
+  form: ForForm
+  block: Block
+}
+
+export interface ForCondition {
+  type: ForFormType.ForCondition
+  expression: Expression
+}
+
+export interface ForClause {
+  type: ForFormType.ForClause
+  init: SimpleStatement | null
+  cond: Expression | null
+  post: SimpleStatement | null
 }
 
 export interface Block extends Node {
@@ -194,7 +220,8 @@ export interface CallOp extends Command {
 export interface BranchOp extends Command {
   type: CommandType.BranchOp
   cons: Block
-  alt: IfStatement | Block | null
+  // TEMP: need to rethink if adding PopTillMOp is a good idea
+  alt: IfStatement | Block | PopTillMOp | null
 }
 
 export interface EnvOp extends Command {
@@ -213,6 +240,8 @@ export interface PopTillMOp extends Command {
   marker: Marker
 }
 
+export const PopTillM = (marker: Marker): PopTillMOp => ({ type: CommandType.PopTillMOp, marker })
+
 export interface BuiltinOp extends Command {
   type: CommandType.BuiltinOp
   id: number
@@ -226,7 +255,8 @@ export interface ApplyBuiltinOp extends Command {
 }
 
 export enum MarkerType {
-  RetMarker = 'RetMarker'
+  RetMarker = 'RetMarker',
+  ForEndMarker = 'ForEndMarker'
 }
 
 export interface Marker {
@@ -234,6 +264,8 @@ export interface Marker {
 }
 
 export const RetMarker = { type: MarkerType.RetMarker }
+
+export const ForEndMarker = { type: MarkerType.ForEndMarker }
 
 export type Instruction =
   | SourceFile
@@ -243,6 +275,7 @@ export type Instruction =
   | ExpressionStatement
   | ReturnStatement
   | IfStatement
+  | ForStatement
   | Expression
   | VarDeclOp
   | AssignOp
