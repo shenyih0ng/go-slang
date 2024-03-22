@@ -32,7 +32,7 @@
 }}
 
 SourceFile
-    = topLevelDecls: TopLevelDeclaration* {
+    = _ topLevelDecls: TopLevelDeclaration* _ {
         return { type: "SourceFile", topLevelDecls }
       }
 
@@ -196,7 +196,7 @@ ShortVariableDeclaration
 /* Function Declaration */
 
 FunctionDeclaration "function declaration"
-    = FUNC_TOKEN ___ name:Identifier _ params:Signature _ body:Block EOS {
+    = FUNC_TOKEN _ name:Identifier _ params:Signature _ body:Block EOS {
         return { type: "FunctionDeclaration", name, params, body }
       }
 
@@ -243,6 +243,47 @@ IdentifierList
 ExpressionList
     = head:Expression _ tail:(_ "," _ Expression)* { return buildList(head, tail, 3); }
 
+/* Comments */
+
+Comment "comment"
+    = MultiLineComment
+    / SingleLineComment
+
+MultiLineComment
+    = "/*" (!"*/" .)* "*/"
+
+MultiLineCommentNoLineTerminator
+    = "/*" (!"*/" (!LineTerminator .))* "*/"
+
+SingleLineComment
+  = "//" (!LineTerminator .)*
+
+/* Separators */
+
+EOS
+  = _ SingleLineComment? LineTerminatorSequence?
+
+LineTerminator
+  = [\n\r\u2028\u2029]
+
+LineTerminatorSequence "end of line"
+  = "\n"
+  / "\r\n"
+  / "\r"
+  / "\u2028"
+  / "\u2029"
+
+Whitespace "whitespace"
+    = "\t"
+    / "\v"
+    / "\f"
+    / " "
+    / "\u00A0"
+    / "\uFEFF"
+
+_  = (Whitespace / LineTerminatorSequence / Comment)* // optional whitespace
+__ = (Whitespace / MultiLineCommentNoLineTerminator)* // optional whitespace with no newlines
+
 /* Tokens */
 
 BREAK_TOKEN         = "break"          !IdentifierPart
@@ -272,7 +313,7 @@ RETURN_TOKEN        = "return"         !IdentifierPart
 VAR_TOKEN           = "var"            !IdentifierPart
 
 Keyword
-    = BREAK_TOKEN    
+    = BREAK_TOKEN 
     / DEFAULT_TOKEN
     / FUNC_TOKEN
     / INTERFACE_TOKEN
@@ -287,29 +328,13 @@ Keyword
     / GOTO_TOKEN
     / PACKAGE_TOKEN
     / SWITCH_TOKEN
-    / CONST_TOKEN  
+    / CONST_TOKEN
     / FALLTHROUGH_TOKEN
     / IF_TOKEN
     / RANGE_TOKEN
-    / TYPE_TOKEN    
+    / TYPE_TOKEN
     / CONTINUE_TOKEN
-    / FOR_TOKEN 
+    / FOR_TOKEN
     / IMPORT_TOKEN
-    / RETURN_TOKEN   
-    / VAR_TOKEN   
-
-/* Separators */
-
-EOS
-  = _ LineTerminatorSequence?
-
-LineTerminatorSequence "end of line"
-  = "\n"
-  / "\r\n"
-  / "\r"
-  / "\u2028"
-  / "\u2029"
-
-_   "whitespace" = [ \t\r\n]* // optional whitespace
-__  "whitespace" = [ \t]*     // optional whitespace with no newlines
-___ "whitespace" = [ \t\r\n]+ // required whitespace
+    / RETURN_TOKEN
+    / VAR_TOKEN
