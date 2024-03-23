@@ -20,6 +20,7 @@ import {
   CallOp,
   ClosureOp,
   CommandType,
+  EmptyStmt,
   EnvOp,
   ExpressionStatement,
   ForEndMarker,
@@ -38,6 +39,7 @@ import {
   RetMarker,
   ReturnStatement,
   SourceFile,
+  True,
   UnaryExpression,
   UnaryOp,
   VarDeclOp,
@@ -154,13 +156,23 @@ const interpreter: {
     const { form, block } = inst
     switch (form.type) {
       case ForFormType.ForCondition:
-        const branch: BranchOp = {
-          type: CommandType.BranchOp,
-          cons: block,
-          alt: PopTillM(ForEndMarker)
-        }
-        C.pushR(form.expression, branch, inst, ForEndMarker)
+        const branch = { type: CommandType.BranchOp, cons: block, alt: PopTillM(ForEndMarker) }
+        C.pushR(form.expression, branch as BranchOp, inst, ForEndMarker)
         break
+      case ForFormType.ForClause:
+        const { init, cond, post } = form
+        const forBlock: Block = {
+          type: NodeType.Block,
+          statements: [
+            init ?? EmptyStmt,
+            {
+              type: NodeType.ForStatement,
+              form: { type: ForFormType.ForCondition, expression: cond ?? True },
+              block: { type: NodeType.Block, statements: [block, post ?? EmptyStmt] }
+            }
+          ]
+        }
+        C.push(forBlock)
     }
   },
 
@@ -188,15 +200,13 @@ const interpreter: {
       }
     }),
 
+  EmptyStatement: () => void {},
+
   Literal: (inst: Literal, { S }) => S.push(inst.value),
 
   Identifier: ({ name }: Identifier, { S, E }) => {
     const value = E.lookup(name)
-    if (value === null) {
-      return IResult.error(new UndefinedError(name))
-    }
-    S.push(value)
-    return
+    return value === null ? IResult.error(new UndefinedError(name)) : S.push(value)
   },
 
   UnaryExpression: ({ argument, operator }: UnaryExpression, { C }) =>
@@ -220,12 +230,8 @@ const interpreter: {
   VarDeclOp: ({ name, zeroValue }: VarDeclOp, { S, E }) =>
     zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop()),
 
-  AssignOp: ({ name }: AssignOp, { S, E }) => {
-    if (!E.assign(name, S.pop())) {
-      return IResult.error(new UndefinedError(name))
-    }
-    return
-  },
+  AssignOp: ({ name }: AssignOp, { S, E }) =>
+    !E.assign(name, S.pop()) ? IResult.error(new UndefinedError(name)) : void {},
 
   UnaryOp: ({ operator }: UnaryOp, { S }) => {
     const operand = S.pop()
