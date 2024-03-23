@@ -265,10 +265,13 @@ export const PopS: PopSOp = { type: CommandType.PopSOp }
 
 export interface PopTillMOp extends Command {
   type: CommandType.PopTillMOp
-  marker: Marker
+  markers: Marker[]
 }
 
-export const PopTillM = (marker: Marker): PopTillMOp => ({ type: CommandType.PopTillMOp, marker })
+export const PopTillM = (...markers: Marker[]): PopTillMOp => ({
+  type: CommandType.PopTillMOp,
+  markers
+})
 
 export interface BuiltinOp extends Command {
   type: CommandType.BuiltinOp

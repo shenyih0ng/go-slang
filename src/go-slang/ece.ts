@@ -6,7 +6,7 @@ import { FuncArityError, UndefinedError, UnknownInstructionError } from './error
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment, createGlobalEnvironment } from './lib/env'
 import { PREDECLARED_FUNCTIONS } from './lib/predeclared'
-import { zip } from './lib/utils'
+import { zip, isAny } from './lib/utils'
 import {
   ApplyBuiltinOp,
   AssignOp,
@@ -272,8 +272,8 @@ const interpreter: {
 
   PopSOp: (_inst, { S }) => void S.pop(),
 
-  PopTillMOp: ({ marker }: PopTillMOp, { C }) => {
-    while (!C.isEmpty() && C.pop() !== marker) {}
+  PopTillMOp: ({ markers }: PopTillMOp, { C }) => {
+    while (!C.isEmpty() && !isAny(C.pop(), markers)) {}
   },
 
   RetMarker: () => void {},
