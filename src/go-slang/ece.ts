@@ -25,6 +25,8 @@ import {
   ExpressionStatement,
   ForEndMarker,
   ForFormType,
+  ForPostMarker,
+  ForStartMarker,
   ForStatement,
   FuncDeclOp,
   FunctionDeclaration,
@@ -157,7 +159,7 @@ const interpreter: {
     switch (form.type) {
       case ForFormType.ForCondition:
         const branch = { type: CommandType.BranchOp, cons: block, alt: PopTillM(ForEndMarker) }
-        C.pushR(form.expression, branch as BranchOp, inst, ForEndMarker)
+        C.pushR(form.expression, branch as BranchOp, ForStartMarker, inst, ForEndMarker)
         break
       case ForFormType.ForClause:
         const { init, cond, post } = form
@@ -168,13 +170,17 @@ const interpreter: {
             {
               type: NodeType.ForStatement,
               form: { type: ForFormType.ForCondition, expression: cond ?? True },
-              block: { type: NodeType.Block, statements: [block, post ?? EmptyStmt] }
+              block: { type: NodeType.Block, statements: [block, ForPostMarker, post ?? EmptyStmt] }
             }
           ]
         }
         C.push(forBlock)
     }
   },
+
+  BreakStatement: (_inst, { C }) => C.push(PopTillM(ForEndMarker)),
+
+  ContinueStatement: (_inst, { C }) => C.push(PopTillM(ForPostMarker, ForStartMarker)),
 
   VariableDeclaration: ({ left, right }: VariableDeclaration, { C }) => {
     if (right.length === 0) {
@@ -277,5 +283,8 @@ const interpreter: {
   },
 
   RetMarker: () => void {},
+
+  ForStartMarker: () => void {},
+  ForPostMarker: () => void {},
   ForEndMarker: () => void {}
 }

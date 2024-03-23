@@ -115,7 +115,7 @@ export interface ContinueStatement extends Node {
 
 export interface Block extends Node {
   type: NodeType.Block
-  statements: Statement[]
+  statements: (Statement | Marker)[]
 }
 
 export interface ExpressionStatement extends Node {
@@ -287,6 +287,8 @@ export interface ApplyBuiltinOp extends Command {
 
 export enum MarkerType {
   RetMarker = 'RetMarker',
+  ForStartMarker = 'ForStartMarker',
+  ForPostMarker = 'ForPostMarker',
   ForEndMarker = 'ForEndMarker'
 }
 
@@ -295,6 +297,10 @@ export interface Marker {
 }
 
 export const RetMarker = { type: MarkerType.RetMarker }
+
+export const ForStartMarker = { type: MarkerType.ForStartMarker }
+
+export const ForPostMarker = { type: MarkerType.ForPostMarker }
 
 export const ForEndMarker = { type: MarkerType.ForEndMarker }
 
