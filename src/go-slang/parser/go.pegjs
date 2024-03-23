@@ -46,6 +46,8 @@ Statement
     / ReturnStatement
     / IfStatement
     / ForStatement
+    / BreakStatement
+    / ContinueStatement
     / Block
 
 Declaration
@@ -247,6 +249,16 @@ ForClause
     = init:SimpleStatement? __ ";" __ cond:Expression? __ ";" __ post:SimpleStatement? {
         return { type: "ForClause", init, cond, post }
       }
+
+/* Break Statement */
+
+BreakStatement
+    = BREAK_TOKEN EOS { return { type: "BreakStatement" } }
+
+/* Continue Statement */
+
+ContinueStatement
+    = CONTINUE_TOKEN EOS { return { type: "ContinueStatement" } }
 
 /* Assignment */
 

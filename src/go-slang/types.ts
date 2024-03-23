@@ -8,6 +8,8 @@ export enum NodeType {
   ReturnStatement = 'ReturnStatement',
   IfStatement = 'IfStatement',
   ForStatement = 'ForStatement',
+  BreakStatement = 'BreakStatement',
+  ContinueStatement = 'ContinueStatement',
   ExpressionStatement = 'ExpressionStatement',
   EmptyStatement = 'EmptyStatement',
   Assignment = 'Assignment',
@@ -27,6 +29,8 @@ type Statement =
   | ReturnStatement
   | IfStatement
   | ForStatement
+  | BreakStatement
+  | ContinueStatement
   | Block
   | SimpleStatement
   | EmptyStatement
@@ -99,6 +103,14 @@ export interface ForClause {
   init: SimpleStatement | null
   cond: Expression | null
   post: SimpleStatement | null
+}
+
+export interface BreakStatement extends Node {
+  type: NodeType.BreakStatement
+}
+
+export interface ContinueStatement extends Node {
+  type: NodeType.ContinueStatement
 }
 
 export interface Block extends Node {
@@ -292,6 +304,8 @@ export type Instruction =
   | ReturnStatement
   | IfStatement
   | ForStatement
+  | BreakStatement
+  | ContinueStatement
   | EmptyStatement
   | Expression
   | VarDeclOp
