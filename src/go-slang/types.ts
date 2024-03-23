@@ -9,6 +9,7 @@ export enum NodeType {
   IfStatement = 'IfStatement',
   ForStatement = 'ForStatement',
   ExpressionStatement = 'ExpressionStatement',
+  EmptyStatement = 'EmptyStatement',
   Assignment = 'Assignment',
   UnaryExpression = 'UnaryExpression',
   BinaryExpression = 'BinaryExpression',
@@ -21,7 +22,14 @@ type TopLevelDeclaration = Declaration | FunctionDeclaration
 
 type Declaration = VariableDeclaration
 
-type Statement = Declaration | ReturnStatement | IfStatement | ForStatement | Block
+type Statement =
+  | Declaration
+  | ReturnStatement
+  | IfStatement
+  | ForStatement
+  | Block
+  | SimpleStatement
+  | EmptyStatement
 
 type SimpleStatement = ExpressionStatement | Assignment | Declaration
 
@@ -103,6 +111,12 @@ export interface ExpressionStatement extends Node {
   expression: Expression
 }
 
+export interface EmptyStatement extends Node {
+  type: NodeType.EmptyStatement
+}
+
+export const EmptyStmt: EmptyStatement = { type: NodeType.EmptyStatement }
+
 export interface Assignment extends Node {
   type: NodeType.Assignment
   left: Expression[]
@@ -118,6 +132,8 @@ export interface Literal extends Node {
   type: NodeType.Literal
   value: any
 }
+
+export const True: Literal = { type: NodeType.Literal, value: true }
 
 export type UnaryOperator = '+' | '-'
 
@@ -276,6 +292,7 @@ export type Instruction =
   | ReturnStatement
   | IfStatement
   | ForStatement
+  | EmptyStatement
   | Expression
   | VarDeclOp
   | AssignOp
