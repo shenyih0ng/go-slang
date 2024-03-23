@@ -156,25 +156,23 @@ const interpreter: {
 
   ForStatement: (inst: ForStatement, { C }) => {
     const { form, block } = inst
-    switch (form.type) {
-      case ForFormType.ForCondition:
-        const branch = { type: CommandType.BranchOp, cons: block, alt: PopTillM(ForEndMarker) }
-        C.pushR(form.expression, branch as BranchOp, ForStartMarker, inst, ForEndMarker)
-        break
-      case ForFormType.ForClause:
-        const { init, cond, post } = form
-        const forBlock: Block = {
-          type: NodeType.Block,
-          statements: [
-            init ?? EmptyStmt,
-            {
-              type: NodeType.ForStatement,
-              form: { type: ForFormType.ForCondition, expression: cond ?? True },
-              block: { type: NodeType.Block, statements: [block, ForPostMarker, post ?? EmptyStmt] }
-            }
-          ]
-        }
-        C.push(forBlock)
+    if (form === null || form.type === ForFormType.ForCondition) {
+      const branch = { type: CommandType.BranchOp, cons: block, alt: PopTillM(ForEndMarker) }
+      C.pushR(form ? form.expression : True, branch as BranchOp, ForStartMarker, inst, ForEndMarker)
+    } else if (form.type === ForFormType.ForClause) {
+      const { init, cond, post } = form
+      const forBlock: Block = {
+        type: NodeType.Block,
+        statements: [
+          init ?? EmptyStmt,
+          {
+            type: NodeType.ForStatement,
+            form: { type: ForFormType.ForCondition, expression: cond ?? True },
+            block: { type: NodeType.Block, statements: [block, ForPostMarker, post ?? EmptyStmt] }
+          }
+        ]
+      }
+      C.push(forBlock)
     }
   },
 
