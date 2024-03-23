@@ -6,7 +6,7 @@ import { FuncArityError, UndefinedError, UnknownInstructionError } from './error
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment, createGlobalEnvironment } from './lib/env'
 import { PREDECLARED_FUNCTIONS } from './lib/predeclared'
-import { zip } from './lib/utils'
+import { zip, isAny } from './lib/utils'
 import {
   ApplyBuiltinOp,
   AssignOp,
@@ -20,8 +20,14 @@ import {
   CallOp,
   ClosureOp,
   CommandType,
+  EmptyStmt,
   EnvOp,
   ExpressionStatement,
+  ForEndMarker,
+  ForFormType,
+  ForPostMarker,
+  ForStartMarker,
+  ForStatement,
   FuncDeclOp,
   FunctionDeclaration,
   Identifier,
@@ -30,10 +36,12 @@ import {
   Literal,
   NodeType,
   PopS,
+  PopTillM,
   PopTillMOp,
   RetMarker,
   ReturnStatement,
   SourceFile,
+  True,
   UnaryExpression,
   UnaryOp,
   VarDeclOp,
@@ -139,12 +147,43 @@ const interpreter: {
   },
 
   ReturnStatement: ({ expression }: ReturnStatement, { C }) =>
-    C.pushR(expression, { type: CommandType.PopTillMOp, marker: RetMarker }),
+    C.pushR(expression, PopTillM(RetMarker)),
 
   IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C }) => {
     const branchOp: BranchOp = { type: CommandType.BranchOp, cons, alt }
     stmt ? C.pushR(stmt, cond, branchOp) : C.pushR(cond, branchOp)
   },
+
+  ForStatement: (inst: ForStatement, { C }) => {
+    const { form, block } = inst
+    if (form === null || form.type === ForFormType.ForCondition) {
+      const branch = { type: CommandType.BranchOp, cons: block, alt: PopTillM(ForEndMarker) }
+      C.pushR(form ? form.expression : True, branch as BranchOp, ForStartMarker, inst, ForEndMarker)
+    } else if (form.type === ForFormType.ForClause) {
+      const { init, cond, post } = form
+      C.push({
+        type: NodeType.Block,
+        statements: [
+          init ?? EmptyStmt,
+          {
+            type: NodeType.ForStatement,
+            form: { type: ForFormType.ForCondition, expression: cond ?? True },
+            block: {
+              type: NodeType.Block,
+              statements: [
+                { ...block, statements: block.statements.concat(ForPostMarker) },
+                post ?? EmptyStmt
+              ]
+            }
+          }
+        ]
+      })
+    }
+  },
+
+  BreakStatement: (_inst, { C }) => C.push(PopTillM(ForEndMarker)),
+
+  ContinueStatement: (_inst, { C }) => C.push(PopTillM(ForPostMarker, ForStartMarker)),
 
   VariableDeclaration: ({ left, right }: VariableDeclaration, { C }) => {
     if (right.length === 0) {
@@ -170,15 +209,13 @@ const interpreter: {
       }
     }),
 
+  EmptyStatement: () => void {},
+
   Literal: (inst: Literal, { S }) => S.push(inst.value),
 
   Identifier: ({ name }: Identifier, { S, E }) => {
     const value = E.lookup(name)
-    if (value === null) {
-      return IResult.error(new UndefinedError(name))
-    }
-    S.push(value)
-    return
+    return value === null ? IResult.error(new UndefinedError(name)) : S.push(value)
   },
 
   UnaryExpression: ({ argument, operator }: UnaryExpression, { C }) =>
@@ -202,12 +239,8 @@ const interpreter: {
   VarDeclOp: ({ name, zeroValue }: VarDeclOp, { S, E }) =>
     zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop()),
 
-  AssignOp: ({ name }: AssignOp, { S, E }) => {
-    if (!E.assign(name, S.pop())) {
-      return IResult.error(new UndefinedError(name))
-    }
-    return
-  },
+  AssignOp: ({ name }: AssignOp, { S, E }) =>
+    !E.assign(name, S.pop()) ? IResult.error(new UndefinedError(name)) : void {},
 
   UnaryOp: ({ operator }: UnaryOp, { S }) => {
     const operand = S.pop()
@@ -248,9 +281,13 @@ const interpreter: {
 
   PopSOp: (_inst, { S }) => void S.pop(),
 
-  PopTillMOp: ({ marker }: PopTillMOp, { C }) => {
-    while (!C.isEmpty() && C.pop() !== marker) {}
+  PopTillMOp: ({ markers }: PopTillMOp, { C }) => {
+    while (!C.isEmpty() && !isAny(C.pop(), markers)) {}
   },
 
-  RetMarker: () => void {}
+  RetMarker: () => void {},
+
+  ForStartMarker: () => void {},
+  ForPostMarker: () => void {},
+  ForEndMarker: () => void {}
 }

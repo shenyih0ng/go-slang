@@ -7,7 +7,11 @@ export enum NodeType {
   FunctionDeclaration = 'FunctionDeclaration',
   ReturnStatement = 'ReturnStatement',
   IfStatement = 'IfStatement',
+  ForStatement = 'ForStatement',
+  BreakStatement = 'BreakStatement',
+  ContinueStatement = 'ContinueStatement',
   ExpressionStatement = 'ExpressionStatement',
+  EmptyStatement = 'EmptyStatement',
   Assignment = 'Assignment',
   UnaryExpression = 'UnaryExpression',
   BinaryExpression = 'BinaryExpression',
@@ -20,7 +24,16 @@ type TopLevelDeclaration = Declaration | FunctionDeclaration
 
 type Declaration = VariableDeclaration
 
-type Statement = Declaration | ReturnStatement | IfStatement | Block
+type Statement =
+  | Declaration
+  | ReturnStatement
+  | IfStatement
+  | ForStatement
+  | BreakStatement
+  | ContinueStatement
+  | Block
+  | SimpleStatement
+  | EmptyStatement
 
 type SimpleStatement = ExpressionStatement | Assignment | Declaration
 
@@ -67,15 +80,54 @@ export interface IfStatement extends Node {
   alt: IfStatement | Block | null
 }
 
+type ForForm = ForCondition | ForClause
+
+export enum ForFormType {
+  ForCondition = 'ForCondition',
+  ForClause = 'ForClause'
+}
+
+export interface ForStatement extends Node {
+  type: NodeType.ForStatement
+  form: ForForm
+  block: Block
+}
+
+export interface ForCondition {
+  type: ForFormType.ForCondition
+  expression: Expression
+}
+
+export interface ForClause {
+  type: ForFormType.ForClause
+  init: SimpleStatement | null
+  cond: Expression | null
+  post: SimpleStatement | null
+}
+
+export interface BreakStatement extends Node {
+  type: NodeType.BreakStatement
+}
+
+export interface ContinueStatement extends Node {
+  type: NodeType.ContinueStatement
+}
+
 export interface Block extends Node {
   type: NodeType.Block
-  statements: Statement[]
+  statements: (Statement | Marker)[]
 }
 
 export interface ExpressionStatement extends Node {
   type: NodeType.ExpressionStatement
   expression: Expression
 }
+
+export interface EmptyStatement extends Node {
+  type: NodeType.EmptyStatement
+}
+
+export const EmptyStmt: EmptyStatement = { type: NodeType.EmptyStatement }
 
 export interface Assignment extends Node {
   type: NodeType.Assignment
@@ -92,6 +144,8 @@ export interface Literal extends Node {
   type: NodeType.Literal
   value: any
 }
+
+export const True: Literal = { type: NodeType.Literal, value: true }
 
 export type UnaryOperator = '+' | '-'
 
@@ -194,7 +248,8 @@ export interface CallOp extends Command {
 export interface BranchOp extends Command {
   type: CommandType.BranchOp
   cons: Block
-  alt: IfStatement | Block | null
+  // TEMP: need to rethink if adding PopTillMOp is a good idea
+  alt: IfStatement | Block | PopTillMOp | null
 }
 
 export interface EnvOp extends Command {
@@ -210,8 +265,13 @@ export const PopS: PopSOp = { type: CommandType.PopSOp }
 
 export interface PopTillMOp extends Command {
   type: CommandType.PopTillMOp
-  marker: Marker
+  markers: Marker[]
 }
+
+export const PopTillM = (...markers: Marker[]): PopTillMOp => ({
+  type: CommandType.PopTillMOp,
+  markers
+})
 
 export interface BuiltinOp extends Command {
   type: CommandType.BuiltinOp
@@ -226,7 +286,10 @@ export interface ApplyBuiltinOp extends Command {
 }
 
 export enum MarkerType {
-  RetMarker = 'RetMarker'
+  RetMarker = 'RetMarker',
+  ForStartMarker = 'ForStartMarker',
+  ForPostMarker = 'ForPostMarker',
+  ForEndMarker = 'ForEndMarker'
 }
 
 export interface Marker {
@@ -234,6 +297,12 @@ export interface Marker {
 }
 
 export const RetMarker = { type: MarkerType.RetMarker }
+
+export const ForStartMarker = { type: MarkerType.ForStartMarker }
+
+export const ForPostMarker = { type: MarkerType.ForPostMarker }
+
+export const ForEndMarker = { type: MarkerType.ForEndMarker }
 
 export type Instruction =
   | SourceFile
@@ -243,6 +312,10 @@ export type Instruction =
   | ExpressionStatement
   | ReturnStatement
   | IfStatement
+  | ForStatement
+  | BreakStatement
+  | ContinueStatement
+  | EmptyStatement
   | Expression
   | VarDeclOp
   | AssignOp
