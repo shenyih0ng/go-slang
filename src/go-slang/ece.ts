@@ -161,18 +161,23 @@ const interpreter: {
       C.pushR(form ? form.expression : True, branch as BranchOp, ForStartMarker, inst, ForEndMarker)
     } else if (form.type === ForFormType.ForClause) {
       const { init, cond, post } = form
-      const forBlock: Block = {
+      C.push({
         type: NodeType.Block,
         statements: [
           init ?? EmptyStmt,
           {
             type: NodeType.ForStatement,
             form: { type: ForFormType.ForCondition, expression: cond ?? True },
-            block: { type: NodeType.Block, statements: [block, ForPostMarker, post ?? EmptyStmt] }
+            block: {
+              type: NodeType.Block,
+              statements: [
+                { ...block, statements: block.statements.concat(ForPostMarker) },
+                post ?? EmptyStmt
+              ]
+            }
           }
         ]
-      }
-      C.push(forBlock)
+      })
     }
   },
 
