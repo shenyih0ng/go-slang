@@ -194,12 +194,11 @@ const interpreter: {
         C.pushR(...right, ...decls.reverse())
   },
 
-  Assignment: ({ left, right }: Assignment, { C }) =>
-    zip(left, right).forEach(([leftExpr, rightExpr]) => {
-      if (leftExpr.type === NodeType.Identifier) {
-        C.pushR(rightExpr, { type: CommandType.AssignOp, name: leftExpr.name })
-      }
-    }),
+  Assignment: ({ left, right }: Assignment, { C }) => {
+    const ids = left as Identifier[] // assume: left is always an array of identifiers
+    const asgmts = ids.map(({ name }) => ({ type: CommandType.AssignOp, name })) as Instruction[]
+    C.pushR(...right, ...asgmts.reverse())
+  },
 
   EmptyStatement: () => void {},
 
