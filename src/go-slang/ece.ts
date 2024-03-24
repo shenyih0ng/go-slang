@@ -186,28 +186,19 @@ const interpreter: {
   ContinueStatement: (_inst, { C }) => C.push(PopTillM(ForPostMarker, ForStartMarker)),
 
   VariableDeclaration: ({ left, right }: VariableDeclaration, { C }) => {
-    if (right.length === 0) {
-      // if there are no right-hand side expressions, we declare zero values
-      const zvDecls = left.map(({ name }) => ({
-        type: CommandType.VarDeclOp,
-        name,
-        zeroValue: true
-      })) as Instruction[]
-      C.pushR(...zvDecls)
-      return
-    }
-
-    zip(left, right).forEach(([{ name }, expr]) =>
-      C.pushR(expr, { type: CommandType.VarDeclOp, name, zeroValue: false })
-    )
+    const decls = left.map(({ name }) => ({ type: CommandType.VarDeclOp, name })) as Instruction[]
+    return right.length === 0
+      ? // if there is no right side, we push zero value for each declaration
+        C.pushR(...decls.map(decl => ({ ...decl, zeroValue: true })))
+      : // assume: left.length === right.length
+        C.pushR(...right, ...decls.reverse())
   },
 
-  Assignment: ({ left, right }: Assignment, { C }) =>
-    zip(left, right).forEach(([leftExpr, rightExpr]) => {
-      if (leftExpr.type === NodeType.Identifier) {
-        C.pushR(rightExpr, { type: CommandType.AssignOp, name: leftExpr.name })
-      }
-    }),
+  Assignment: ({ left, right }: Assignment, { C }) => {
+    const ids = left as Identifier[] // assume: left is always an array of identifiers
+    const asgmts = ids.map(({ name }) => ({ type: CommandType.AssignOp, name })) as Instruction[]
+    C.pushR(...right, ...asgmts.reverse())
+  },
 
   EmptyStatement: () => void {},
 
