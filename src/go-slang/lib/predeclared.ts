@@ -21,9 +21,11 @@ export const PREDECLARED_IDENTIFIERS: { [key: string]: any } = {
  * @param slangRawDisplay rawDisplay function that contains the console capture
  * @returns a function that takes any number of arguments and prints them to the console
  */
-function println(slangRawDisplay: (str: string) => void): (...args: any) => void {
+function println(slangRawDisplay: (str: string) => string): (...args: any) => undefined {
   return (...args: any) =>
-    slangRawDisplay(args.map((arg: { toString: () => any }) => arg.toString()).join(' '))
+    void slangRawDisplay(
+      args.map((arg: { toString: () => any }) => (arg ? arg.toString() : '(no value)')).join(' ')
+    )
 }
 
 export const PREDECLARED_FUNCTIONS: PredeclaredFunc[] = [
