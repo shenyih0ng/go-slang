@@ -260,8 +260,8 @@ const interpreter: {
   BranchOp: ({ cons, alt }: BranchOp, { S, C }) =>
     void (S.pop() ? C.pushR(cons) : alt && C.pushR(alt)),
 
-  ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { B }) =>
-    void B.get(id)!(...values),
+  ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { S, B }) =>
+    void S.push(B.get(id)!(...values)),
 
   EnvOp: ({ env }: EnvOp) => IResult.ok(env),
 

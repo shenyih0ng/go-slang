@@ -37,13 +37,7 @@ type Statement =
 
 type SimpleStatement = ExpressionStatement | Assignment | Declaration
 
-type Expression =
-  | Identifier
-  | Literal
-  | UnaryExpression
-  | BinaryExpression
-  | Assignment
-  | CallExpression
+type Expression = Identifier | Literal | UnaryExpression | BinaryExpression | CallExpression
 
 export interface Node {
   type: NodeType
@@ -310,6 +304,7 @@ export type Instruction =
   | FunctionDeclaration
   | Block
   | ExpressionStatement
+  | SimpleStatement
   | ReturnStatement
   | IfStatement
   | ForStatement
