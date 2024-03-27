@@ -39,8 +39,21 @@ type SimpleStatement = ExpressionStatement | Assignment | Declaration
 
 type Expression = Identifier | Literal | UnaryExpression | BinaryExpression | CallExpression
 
+interface Position {
+  line: number
+  column: number
+  offset: number
+}
+interface NodeLocation {
+  start: Position
+  end: Position
+  offset: number
+}
+
 export interface Node {
   type: NodeType
+  uid?: number
+  loc?: NodeLocation
 }
 
 export interface SourceFile extends Node {

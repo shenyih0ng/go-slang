@@ -11,29 +11,35 @@
         // note: we discard the "_" delimiters
         return parseInt(str.replaceAll("_", ""), base)
     }
+}}
+
+{
+    // `uid` is a monotonically increasing unique identifier for AST nodes
+    let uid = 0; 
+
+    function makeNode(node) {
+        return { ...node, uid: uid++, loc: location() };
+    }
 
     function buildLiteral(value) {
-        return {
-            type: "Literal",
-            value: value
-        };
+        return makeNode({ type: "Literal", value: value});
     }
     
     function buildBinaryExpression(head, tail) {
         return tail.reduce(function(result, element) {
-            return {
+            return makeNode({
                 type: "BinaryExpression",
                 operator: element[1],
                 left: result,
                 right: element[3]
-            };
+            });
         }, head);
     }
-}}
+}
 
 SourceFile
     = _ topLevelDecls: TopLevelDeclaration* _ {
-        return { type: "SourceFile", topLevelDecls }
+        return makeNode({ type: "SourceFile", topLevelDecls })
       }
 
 TopLevelDeclaration
@@ -60,7 +66,7 @@ SimpleStatement
 
 ExpressionStatement
    = expression: Expression EOS { 
-        return { type: "ExpressionStatement", expression: expression } 
+        return makeNode({ type: "ExpressionStatement", expression: expression })
      }
 
 Expression
@@ -73,7 +79,7 @@ PrimaryExpression
 
 Identifier
     = !Keyword Letter IdentifierPart* { 
-        return { type: "Identifier", name: text() } 
+        return makeNode({ type: "Identifier", name: text() })
       }
 
 Letter
@@ -133,7 +139,7 @@ UnaryExpression
     = CallExpression 
     / PrimaryExpression
     / operator:UnaryOperator argument:UnaryExpression {
-        return {type: "UnaryExpression", operator: operator, argument: argument}
+        return makeNode({type: "UnaryExpression", operator, argument})
  	  }
  
 UnaryOperator
@@ -176,14 +182,14 @@ RelationalOperator
 
 CallExpression
     = callee:PrimaryExpression "(" args:ExpressionList? ")" EOS {
-        return { type: "CallExpression", callee, args: args ?? [] }
+        return makeNode({ type: "CallExpression", callee, args: args ?? [] })
       }
 
 /* Variable Declaration */
 
 VariableDeclaration
     = VAR_TOKEN __ declarations:VarSpec EOS {
-        return { type: "VariableDeclaration", ...declarations }
+        return makeNode({ type: "VariableDeclaration", ...declarations })
       }
 
 VarSpec
@@ -193,14 +199,14 @@ VarSpec
 
 ShortVariableDeclaration
     = left:IdentifierList _ ":=" _ right:ExpressionList EOS {
-        return { type: "VariableDeclaration", left, right }
+        return makeNode({ type: "VariableDeclaration", left, right })
       }
 
 /* Function Declaration */
 
 FunctionDeclaration "function declaration"
     = FUNC_TOKEN _ name:Identifier _ params:Signature _ body:Block EOS {
-        return { type: "FunctionDeclaration", name, params, body }
+        return makeNode({ type: "FunctionDeclaration", name, params, body })
       }
 
 Signature
@@ -210,21 +216,21 @@ Signature
 
 Block "block"
     = "{" _ statements:Statement* _ "}" EOS {
-        return { type: "Block", statements }
+        return makeNode({ type: "Block", statements })
       }
 
 /* Return Statement */
 
 ReturnStatement
     = RETURN_TOKEN _ expression:Expression EOS {
-        return { type: "ReturnStatement", expression }
+        return makeNode({ type: "ReturnStatement", expression })
       }
 
 /* If Statement */
 
 IfStatement
     = IF_TOKEN _ stmt:IfSimpleStatement? _ cond:Expression _ cons:Block _ alt:ElseBranch? EOS {
-        return { type: "IfStatement", stmt, cond, cons, alt }
+        return makeNode({ type: "IfStatement", stmt, cond, cons, alt })
       }
 
 IfSimpleStatement
@@ -236,7 +242,7 @@ ElseBranch
 /* For Statement */
 
 ForStatement
-    = FOR_TOKEN __ form:ForForm? __ block:Block EOS { return { type: "ForStatement", form, block} }
+    = FOR_TOKEN __ form:ForForm? __ block:Block EOS { return makeNode({ type: "ForStatement", form, block}) }
       
 ForForm
 	= ForClause
@@ -253,18 +259,18 @@ ForClause
 /* Break Statement */
 
 BreakStatement
-    = BREAK_TOKEN EOS { return { type: "BreakStatement" } }
+    = BREAK_TOKEN EOS { return makeNode({ type: "BreakStatement" }) }
 
 /* Continue Statement */
 
 ContinueStatement
-    = CONTINUE_TOKEN EOS { return { type: "ContinueStatement" } }
+    = CONTINUE_TOKEN EOS { return makeNode({ type: "ContinueStatement" }) }
 
 /* Assignment */
 
 Assignment
     = left:ExpressionList _ "=" _ right:ExpressionList EOS {
-        return { type: "Assignment", left, right }
+        return makeNode({ type: "Assignment", left, right })
       }
 
 IdentifierList

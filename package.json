@@ -52,7 +52,7 @@
   },
   "scripts": {
     "build": "yarn docs && yarn build:slang",
-    "build:go": "peggy src/go-slang/parser/*.pegjs",
+    "build:go": "peggy --cache --allowed-start-rules SourceFile src/go-slang/parser/*.pegjs",
     "build:slang": "yarn build:go && tsc --build --force",
     "eslint": "eslint --ext \".ts,.tsx\" src",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
