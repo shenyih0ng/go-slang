@@ -18,7 +18,7 @@
     let uid = 0; 
 
     function makeNode(node) {
-        return { ...node, uid: uid++ };
+        return { ...node, uid: uid++, loc: location() };
     }
 
     function buildLiteral(value) {
