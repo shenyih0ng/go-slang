@@ -24,7 +24,7 @@ export const PREDECLARED_IDENTIFIERS: { [key: string]: any } = {
 function println(slangRawDisplay: (str: string) => string): (...args: any) => undefined {
   return (...args: any) =>
     void slangRawDisplay(
-      args.map((arg: { toString: () => any }) => (arg ? arg.toString() : '(no value)')).join(' ')
+      args.map((arg: any) => (arg != undefined ? arg.toString() : '(no value)')).join(' ')
     )
 }
 
