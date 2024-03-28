@@ -5,6 +5,7 @@ import { Value } from '../types'
 import { FuncArityError, UndefinedError, UnknownInstructionError } from './error'
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment, createGlobalEnvironment } from './lib/env'
+import { Heap } from './lib/heap'
 import { PREDECLARED_FUNCTIONS } from './lib/predeclared'
 import { zip, isAny } from './lib/utils'
 import {
@@ -57,6 +58,7 @@ interface Context {
   S: Stash
   E: Environment
   B: Builtins
+  H: Heap
 }
 
 // IResult is a type that represents the result of an interpreter operation
@@ -86,6 +88,7 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
   const C = new Stack<Instruction>()
   const S = new Stack<any>()
   const E = createGlobalEnvironment()
+  const H = new Heap()
 
   // inject predeclared functions into the global environment
   const B = new Map<number, (...args: any[]) => any>()
@@ -101,7 +104,7 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
     B.set(id, func)
   })
 
-  const Context = { C, S, E, B }
+  const Context = { C, S, E, B, H }
 
   // start the program by calling `main`
   C.pushR(program, CALL_MAIN)
@@ -197,11 +200,11 @@ const interpreter: {
 
   EmptyStatement: () => void {},
 
-  Literal: (inst: Literal, { S }) => S.push(inst.value),
+  Literal: (inst: Literal, { S, H }) => S.push(H.alloc(inst.value)),
 
-  Identifier: ({ name }: Identifier, { S, E }) => {
+  Identifier: ({ name }: Identifier, { S, E, H }) => {
     const value = E.lookup(name)
-    return value === null ? IResult.error(new UndefinedError(name)) : S.push(value)
+    return value === null ? IResult.error(new UndefinedError(name)) : S.push(H.alloc(value))
   },
 
   UnaryExpression: ({ argument, operator }: UnaryExpression, { C }) =>
@@ -222,25 +225,25 @@ const interpreter: {
   FuncDeclOp: ({ name, params, body }: FuncDeclOp, { E }) =>
     E.declare(name, { type: CommandType.ClosureOp, params, body, env: E }),
 
-  VarDeclOp: ({ name, zeroValue }: VarDeclOp, { S, E }) =>
-    zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop()),
+  VarDeclOp: ({ name, zeroValue }: VarDeclOp, { S, E, H }) =>
+    zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop())),
 
-  AssignOp: ({ name }: AssignOp, { S, E }) =>
-    !E.assign(name, S.pop()) ? IResult.error(new UndefinedError(name)) : void {},
+  AssignOp: ({ name }: AssignOp, { S, E, H }) =>
+    !E.assign(name, H.resolve(S.pop())) ? IResult.error(new UndefinedError(name)) : void {},
 
-  UnaryOp: ({ operator }: UnaryOp, { S }) => {
-    const operand = S.pop()
-    S.push(operator === '-' ? -operand : operand)
+  UnaryOp: ({ operator }: UnaryOp, { S, H }) => {
+    const operand = H.resolve(S.pop())
+    S.push(H.alloc(operator === '-' ? -operand : operand))
   },
 
-  BinaryOp: ({ operator }: BinaryOp, { S }) => {
-    const [left, right] = S.popNR(2)
-    S.push(evaluateBinaryOp(operator, left, right))
+  BinaryOp: ({ operator }: BinaryOp, { S, H }) => {
+    const [left, right] = S.popNR(2).map(H.resolve.bind(H))
+    S.push(H.alloc(evaluateBinaryOp(operator, left, right)))
   },
 
-  CallOp: ({ calleeName, arity }: CallOp, { C, S, E }) => {
-    const values = S.popNR(arity)
-    const op = S.pop() as ClosureOp | BuiltinOp
+  CallOp: ({ calleeName, arity }: CallOp, { C, S, E, H }) => {
+    const values = S.popNR(arity).map(H.resolve.bind(H))
+    const op = H.resolve(S.pop()) as ClosureOp | BuiltinOp
 
     if (op.type === CommandType.BuiltinOp) {
       C.pushR({ type: CommandType.ApplyBuiltinOp, builtinOp: op, values })
@@ -257,11 +260,11 @@ const interpreter: {
     return IResult.ok(E.extend(Object.fromEntries(zip(params, values))))
   },
 
-  BranchOp: ({ cons, alt }: BranchOp, { S, C }) =>
-    void (S.pop() ? C.pushR(cons) : alt && C.pushR(alt)),
+  BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>
+    void (H.resolve(S.pop()) ? C.pushR(cons) : alt && C.pushR(alt)),
 
-  ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { S, B }) =>
-    void S.push(B.get(id)!(...values)),
+  ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { S, B, H }) =>
+    void S.push(H.alloc(B.get(id)!(...values))),
 
   EnvOp: ({ env }: EnvOp) => IResult.ok(env),
 
