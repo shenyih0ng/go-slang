@@ -22,7 +22,10 @@ export class Heap {
    * @param value the value to be allocated
    */
   public alloc(value: any) {
-    if (typeof value === 'number') {
+    const valueType = typeof value
+    if (valueType === 'boolean') {
+      return this.allocateBoolean(value)
+    } else if (valueType === 'number') {
       return this.allocateNumber(value)
     }
 
@@ -44,9 +47,18 @@ export class Heap {
 
     const tag = this.memory.getInt8(heap_addr * WORD_SIZE)
     switch (tag) {
+      case PointerTag.False:
+        return false
+      case PointerTag.True:
+        return true
       case PointerTag.Number:
         return this.get(heap_addr + 1)
     }
+  }
+
+  private allocateBoolean(value: boolean): HeapAddress {
+    // booleans are represented as tagged pointers with no underlying data
+    return this.allocateTaggedPtr(value ? PointerTag.True : PointerTag.False, 0)
   }
 
   private allocateNumber(value: number): HeapAddress {
