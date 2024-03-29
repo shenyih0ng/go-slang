@@ -10,6 +10,11 @@ export class Heap {
 
   constructor(n_words?: number) {
     this.memory = new DataView(new ArrayBuffer((n_words ?? DEFAULT_HEAP_SIZE) * WORD_SIZE))
+
+    // Allocate special values in the heap to avoid re-allocating them
+    // NOTE: these values are allocated at the beginning of the heap
+    this.allocateBoolean(false) // heap_addr: 0
+    this.allocateBoolean(true) // heap_addr: 1
   }
 
   /**
@@ -26,7 +31,7 @@ export class Heap {
     // JavaScript primitive values
     const valueType = typeof value
     if (valueType === 'boolean') {
-      return this.allocateBoolean(value)
+      return +value
     } else if (valueType === 'number') {
       return this.allocateNumber(value)
     }
