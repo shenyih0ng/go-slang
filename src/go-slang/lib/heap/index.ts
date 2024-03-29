@@ -45,8 +45,7 @@ export class Heap {
       return heap_addr
     }
 
-    const tag = this.memory.getInt8(heap_addr * WORD_SIZE)
-    switch (tag) {
+    switch (this.tag(heap_addr)) {
       case PointerTag.False:
         return false
       case PointerTag.True:
@@ -92,6 +91,16 @@ export class Heap {
     this.memory.setUint16(alloc_mem_addr + SIZE_OFFSET, size)
 
     return alloc_heap_addr
+  }
+
+  /**
+   * Get the tag of the block at the given address
+   *
+   * @param heap_addr n_words to the block
+   * @returns tag of the block
+   */
+  private tag(heap_addr: HeapAddress): PointerTag {
+    return this.memory.getInt8(heap_addr * WORD_SIZE)
   }
 
   /**
