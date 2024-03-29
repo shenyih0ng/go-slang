@@ -210,6 +210,10 @@ export interface Command {
   type: CommandType
 }
 
+export function isCommand(v: any): boolean {
+  return v && v.type && CommandType[v.type]
+}
+
 export interface VarDeclOp extends Command {
   type: CommandType.VarDeclOp
   zeroValue: boolean

@@ -1,4 +1,5 @@
-import { DEFAULT_HEAP_SIZE, SIZE_OFFSET, WORD_SIZE } from './config'
+import { BuiltinOp, CommandType, isCommand } from '../../types'
+import { DEFAULT_HEAP_SIZE, WORD_SIZE } from './config'
 import { PointerTag } from './tags'
 
 export type HeapAddress = number
@@ -22,6 +23,7 @@ export class Heap {
    * @param value the value to be allocated
    */
   public alloc(value: any) {
+    // JavaScript primitive values
     const valueType = typeof value
     if (valueType === 'boolean') {
       return this.allocateBoolean(value)
@@ -29,6 +31,15 @@ export class Heap {
       return this.allocateNumber(value)
     }
 
+    // ECE operations
+    if (isCommand(value)) {
+      switch (value.type) {
+        case 'BuiltinOp':
+          return this.allocateBuiltinOp(value)
+      }
+    }
+
+    console.log(value)
     // TEMP: if the value is not a supported type, return the value as is
     return value
   }
@@ -52,6 +63,13 @@ export class Heap {
         return true
       case PointerTag.Number:
         return this.get(heap_addr + 1)
+      case PointerTag.BuiltInOp:
+        const mem_addr = heap_addr * WORD_SIZE
+        return {
+          type: CommandType.BuiltinOp,
+          arity: this.memory.getInt16(mem_addr + 1),
+          id: this.memory.getInt16(mem_addr + 3)
+        } as BuiltinOp
     }
   }
 
@@ -60,34 +78,51 @@ export class Heap {
     return this.allocateTaggedPtr(value ? PointerTag.True : PointerTag.False, 0)
   }
 
+  /* Memory Layout of a Number: [0-7:ptr][0-7:data] (2 words) */
   private allocateNumber(value: number): HeapAddress {
     const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.Number, 1)
-    // address of the data block storing the number
-    // location: the block right after the pointer block
+
     const data_heap_addr = ptr_heap_addr + 1
     this.set(data_heap_addr, value)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of a BuiltinOp: [0:tag, 1-2: arity, 3-4:id, 5-6:size, 7:_unused_] (1 word) */
+  private allocateBuiltinOp({ arity, id }: BuiltinOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.BuiltInOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    // NOTE: assume there will be no arity greater than 2^16
+    this.memory.setInt16(ptr_mem_addr + 1, arity ?? -1)
+    // NOTE: assume there are no more than 2^16 built-in operations
+    this.memory.setInt16(ptr_mem_addr + 3, id)
+
     return ptr_heap_addr
   }
 
   /**
    * Allocate a tagged pointer in the heap
    *
+   * Memory Layout of a tagged pointer (1 word):
+   * [0:tag, 1-4:_unused_, 5-6:size, 7:_unused_]
+   *
    * @param tag  The tag to be associated with the pointer
    * @param size The size of the underlying data structure
    * @returns Address of the allocated block
    */
-  private allocateTaggedPtr(tag: PointerTag, size: number): HeapAddress {
+  private allocateTaggedPtr(tag: PointerTag, size: number = 0): HeapAddress {
+    const SIZE_OFFSET = 5 // in bytes
+
     const alloc_heap_addr = this.free
     // move the free pointer to the next block
     // next free location: current free + size of the data + 1 (the pointer tag)
     this.free += size + 1
 
     const alloc_mem_addr = alloc_heap_addr * WORD_SIZE
-    // mark the block with the given tag
-    // location: byte [0] of the block
+    // set the tag (1 byte) of the block
     this.memory.setInt8(alloc_mem_addr, tag)
     // set the size (2 bytes) of the underlying data structure
-    // location: byte [SIZE_OFFSET:SIZE_OFFSET+2] of the block
     this.memory.setUint16(alloc_mem_addr + SIZE_OFFSET, size)
 
     return alloc_heap_addr
