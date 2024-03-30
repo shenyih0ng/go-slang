@@ -193,20 +193,20 @@ CallExpression
 
 SelectStatement "select statement"
     = SELECT_TOKEN _ "{" _ cases:CommClause* _ "}" EOS {
-        return { type: "SelectStatement", cases }
-    }
+        return makeNode({ type: "SelectStatement", cases })
+      }
 
 CommClause
     = pred:CommCase __ ":" _ statements:Statement* EOS {
-        return { type: "CommClause", pred, statements }
+        return makeNode({ type: "CommClause", pred, statements })
       }
 CommCase
-    = CASE_TOKEN _ statement:(ReceiveStatement / SendStatement) EOS { return statement}
+    = CASE_TOKEN _ statement:(ReceiveStatement / SendStatement) EOS { return statement }
     / DEFAULT_TOKEN { return [] }
 
 ReceiveStatement
-    = left:( ExpressionList __ "=" / IdentifierList __ ":=" ) __ right:ReceiveExpression EOS {
-        return { type: "ReceiveStatement", left, right }
+    = left:( ExpressionList __ "=" / IdentifierList __ ":=" )* __ right:ReceiveExpression EOS {
+        return makeNode({ type: "ReceiveStatement", left, right })
       }
 
 ReceiveExpression
@@ -216,14 +216,14 @@ ReceiveExpression
 
 GoStatement
     = GO_TOKEN __ call:Expression EOS {
-        return { type: "GoStatement", call }
+        return makeNode({ type: "GoStatement", call })
       }
 
 /* Send Declaration */
 
 SendStatement
     = channel:Channel _ "<-" _ value:Expression EOS {
-        return { type: "SendStatement", channel, value }
+        return makeNode({ type: "SendStatement", channel, value })
       }
 
 Channel
