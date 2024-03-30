@@ -1,5 +1,3 @@
-import { Environment } from './lib/env'
-
 export enum NodeType {
   SourceFile = 'SourceFile',
   Block = 'Block',
@@ -195,8 +193,7 @@ export enum CommandType {
   AssignOp = 'AssignOp',
   UnaryOp = 'UnaryOp',
   BinaryOp = 'BinaryOp',
-  FuncDeclOp = 'FuncDeclOp',
-  ClosureOp = 'Closure',
+  ClosureOp = 'ClosureOp',
   CallOp = 'CallOp',
   BranchOp = 'BranchOp',
   EnvOp = 'EnvOp',
@@ -235,19 +232,10 @@ export interface BinaryOp extends Command {
   operator: BinaryOperator
 }
 
-export interface FuncDeclOp extends Command {
-  type: CommandType.FuncDeclOp
-  name: string
-  params: string[]
-  body: Block
-}
-
 export interface ClosureOp extends Command {
   type: CommandType.ClosureOp
-  name: string
-  params: string[]
-  body: Block
-  env: Environment
+  funcDeclNodeUid: number
+  envId: number
 }
 
 export interface CallOp extends Command {
@@ -265,7 +253,7 @@ export interface BranchOp extends Command {
 
 export interface EnvOp extends Command {
   type: CommandType.EnvOp
-  env: Environment
+  envId: number
 }
 
 export interface PopSOp extends Command {
@@ -333,7 +321,6 @@ export type Instruction =
   | AssignOp
   | UnaryOp
   | BinaryOp
-  | FuncDeclOp
   | ClosureOp
   | CallOp
   | BranchOp

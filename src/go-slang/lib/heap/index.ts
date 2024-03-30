@@ -1,4 +1,4 @@
-import { BuiltinOp, CommandType, isCommand } from '../../types'
+import { BuiltinOp, ClosureOp, CommandType, isCommand } from '../../types'
 import { DEFAULT_HEAP_SIZE, WORD_SIZE } from './config'
 import { PointerTag } from './tags'
 
@@ -39,13 +39,13 @@ export class Heap {
     // ECE operations
     if (isCommand(value)) {
       switch (value.type) {
-        case 'BuiltinOp':
+        case CommandType.BuiltinOp:
           return this.allocateBuiltinOp(value)
+        case CommandType.ClosureOp:
+          return this.allocateClosureOp(value)
       }
     }
 
-    console.log(value)
-    // TEMP: if the value is not a supported type, return the value as is
     return value
   }
 
@@ -61,6 +61,7 @@ export class Heap {
       return heap_addr
     }
 
+    const mem_addr = heap_addr * WORD_SIZE
     switch (this.tag(heap_addr)) {
       case PointerTag.False:
         return false
@@ -69,12 +70,17 @@ export class Heap {
       case PointerTag.Number:
         return this.get(heap_addr + 1)
       case PointerTag.BuiltInOp:
-        const mem_addr = heap_addr * WORD_SIZE
         return {
           type: CommandType.BuiltinOp,
           arity: this.memory.getInt16(mem_addr + 1),
           id: this.memory.getInt16(mem_addr + 3)
         } as BuiltinOp
+      case PointerTag.ClosureOp:
+        return {
+          type: CommandType.ClosureOp,
+          funcDeclNodeUid: this.memory.getInt16(mem_addr + 1),
+          envId: this.memory.getInt16(mem_addr + 3)
+        } as ClosureOp
     }
   }
 
@@ -102,6 +108,19 @@ export class Heap {
     this.memory.setInt16(ptr_mem_addr + 1, arity ?? -1)
     // NOTE: assume there are no more than 2^16 built-in operations
     this.memory.setInt16(ptr_mem_addr + 3, id)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of a ClosureOp: [0:tag, 1-2:funcDeclNodeUid, 3-4:envId, 5-6:size, 7:_unused_] (1 word) */
+  private allocateClosureOp({ funcDeclNodeUid, envId }: ClosureOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.ClosureOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    // NOTE: assume there will be no more than 2^16 AST nodes
+    this.memory.setInt16(ptr_mem_addr + 1, funcDeclNodeUid)
+    // NOTE: assume there will be no more than 2^16 envs
+    this.memory.setInt16(ptr_mem_addr + 3, envId)
 
     return ptr_heap_addr
   }

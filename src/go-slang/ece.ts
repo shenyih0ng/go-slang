@@ -5,7 +5,7 @@ import { Value } from '../types'
 import { FuncArityError, UndefinedError, UnknownInstructionError } from './error'
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment, createGlobalEnvironment } from './lib/env'
-import { Heap } from './lib/heap'
+import { Heap, HeapAddress } from './lib/heap'
 import { PREDECLARED_FUNCTIONS } from './lib/predeclared'
 import { zip, isAny } from './lib/utils'
 import {
@@ -29,12 +29,12 @@ import {
   ForPostMarker,
   ForStartMarker,
   ForStatement,
-  FuncDeclOp,
   FunctionDeclaration,
   Identifier,
   IfStatement,
   Instruction,
   Literal,
+  Node,
   NodeType,
   PopS,
   PopTillM,
@@ -50,8 +50,9 @@ import {
 } from './types'
 
 type Control = Stack<Instruction>
-type Stash = Stack<any>
+type Stash = Stack<HeapAddress>
 type Builtins = Map<number, (...args: any[]) => any>
+type AstMap = Map<number, Node>
 
 interface Context {
   C: Control
@@ -59,23 +60,7 @@ interface Context {
   E: Environment
   B: Builtins
   H: Heap
-}
-
-// IResult is a type that represents the result of an interpreter operation
-class IResult<T, E extends RuntimeSourceError> {
-  private constructor(
-    public readonly ok: boolean,
-    public readonly value?: T,
-    public readonly error?: E
-  ) {}
-
-  public static ok<T, E extends RuntimeSourceError>(value: T): IResult<T, E> {
-    return new IResult(true, value)
-  }
-
-  public static error<_T, E extends RuntimeSourceError>(error: E): IResult<any, E> {
-    return new IResult(false, undefined, error)
-  }
+  A: AstMap
 }
 
 const CALL_MAIN: CallExpression = {
@@ -89,6 +74,7 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
   const S = new Stack<any>()
   const E = createGlobalEnvironment()
   const H = new Heap()
+  const A = new Map<number, Node>()
 
   // inject predeclared functions into the global environment
   const B = new Map<number, (...args: any[]) => any>()
@@ -104,7 +90,7 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
     B.set(id, func)
   })
 
-  const Context = { C, S, E, B, H }
+  const Context = { C, S, E, B, H, A }
 
   // start the program by calling `main`
   C.pushR(program, CALL_MAIN)
@@ -117,36 +103,30 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
       return undefined
     }
 
-    const result = interpreter[inst.type](inst, Context) ?? IResult.ok(Context.E)
-    if (!result.ok) {
-      slangContext.errors.push(result.error as RuntimeSourceError)
+    const runtimeError = interpreter[inst.type](inst, Context)
+    if (runtimeError) {
+      slangContext.errors.push(runtimeError as RuntimeSourceError)
       return undefined
     }
-    Context.E = result.value as Environment
   }
 
   return 'Program exited'
 }
 
 const interpreter: {
-  [key: string]: (
-    inst: Instruction,
-    context: Context
-  ) => IResult<Environment, RuntimeSourceError> | void
+  [key: string]: (inst: Instruction, context: Context) => RuntimeSourceError | void
 } = {
   SourceFile: ({ topLevelDecls }: SourceFile, { C }) => C.pushR(...topLevelDecls),
 
-  FunctionDeclaration: ({ name: id, params, body }: FunctionDeclaration, { C }) =>
-    C.push({
-      type: CommandType.FuncDeclOp,
-      name: id.name,
-      params: params.map(id => id.name),
-      body: body
-    }),
+  FunctionDeclaration: (funcDeclNode: FunctionDeclaration, { E, A }) => {
+    const { id, uid: funcDeclNodeUid } = funcDeclNode
+    A.set(funcDeclNodeUid as number, funcDeclNode)
+    E.declare(id.name, { type: CommandType.ClosureOp, funcDeclNodeUid, envId: E.id() } as ClosureOp)
+  },
 
   Block: ({ statements }: Block, { C, E }) => {
-    C.pushR(...statements, { type: CommandType.EnvOp, env: E })
-    return IResult.ok(E.extend({}))
+    C.pushR(...statements, { type: CommandType.EnvOp, envId: E.id() })
+    E.extend({})
   },
 
   ReturnStatement: ({ expression }: ReturnStatement, { C }) =>
@@ -204,7 +184,7 @@ const interpreter: {
 
   Identifier: ({ name }: Identifier, { S, E, H }) => {
     const value = E.lookup(name)
-    return value === null ? IResult.error(new UndefinedError(name)) : S.push(H.alloc(value))
+    return value === null ? new UndefinedError(name) : S.push(H.alloc(value))
   },
 
   UnaryExpression: ({ argument, operator }: UnaryExpression, { C }) =>
@@ -222,14 +202,11 @@ const interpreter: {
 
   ExpressionStatement: ({ expression }: ExpressionStatement, { C }) => C.pushR(expression, PopS),
 
-  FuncDeclOp: ({ name, params, body }: FuncDeclOp, { E }) =>
-    E.declare(name, { type: CommandType.ClosureOp, params, body, env: E }),
-
   VarDeclOp: ({ name, zeroValue }: VarDeclOp, { S, E, H }) =>
     zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop())),
 
   AssignOp: ({ name }: AssignOp, { S, E, H }) =>
-    !E.assign(name, H.resolve(S.pop())) ? IResult.error(new UndefinedError(name)) : void {},
+    !E.assign(name, H.resolve(S.pop())) ? new UndefinedError(name) : void {},
 
   UnaryOp: ({ operator }: UnaryOp, { S, H }) => {
     const operand = H.resolve(S.pop())
@@ -241,23 +218,26 @@ const interpreter: {
     S.push(H.alloc(evaluateBinaryOp(operator, left, right)))
   },
 
-  CallOp: ({ calleeName, arity }: CallOp, { C, S, E, H }) => {
+  CallOp: ({ calleeName, arity }: CallOp, { C, S, E, H, A }) => {
     const values = S.popNR(arity).map(H.resolve.bind(H))
     const op = H.resolve(S.pop()) as ClosureOp | BuiltinOp
 
     if (op.type === CommandType.BuiltinOp) {
-      C.pushR({ type: CommandType.ApplyBuiltinOp, builtinOp: op, values })
-      return
+      return C.pushR({ type: CommandType.ApplyBuiltinOp, builtinOp: op, values })
     }
 
     // handle ClosureOp
-    const { params, body: callee } = op
-    if (params.length !== values.length) {
-      return IResult.error(new FuncArityError(calleeName, values.length, params.length))
+    const { funcDeclNodeUid, envId } = op
+    const { params, body } = A.get(funcDeclNodeUid) as FunctionDeclaration
+    const paramNames = params.map(({ name }) => name)
+
+    if (paramNames.length !== values.length) {
+      return new FuncArityError(calleeName, values.length, params.length)
     }
 
-    C.pushR(callee, RetMarker, { type: CommandType.EnvOp, env: E })
-    return IResult.ok(E.extend(Object.fromEntries(zip(params, values))))
+    C.pushR(body, RetMarker, { type: CommandType.EnvOp, envId: E.id() })
+    // set the environment to the closure's environment
+    E.setId(envId).extend(Object.fromEntries(zip(paramNames, values)))
   },
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>
@@ -266,7 +246,7 @@ const interpreter: {
   ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { S, B, H }) =>
     void S.push(H.alloc(B.get(id)!(...values))),
 
-  EnvOp: ({ env }: EnvOp) => IResult.ok(env),
+  EnvOp: ({ envId }: EnvOp, { E }) => void E.setId(envId),
 
   PopSOp: (_inst, { S }) => void S.pop(),
 
