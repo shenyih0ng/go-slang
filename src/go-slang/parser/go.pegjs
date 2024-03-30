@@ -205,8 +205,8 @@ ShortVariableDeclaration
 /* Function Declaration */
 
 FunctionDeclaration "function declaration"
-    = FUNC_TOKEN _ name:Identifier _ params:Signature _ body:Block EOS {
-        return makeNode({ type: "FunctionDeclaration", name, params, body })
+    = FUNC_TOKEN _ id:Identifier _ params:Signature _ body:Block EOS {
+        return makeNode({ type: "FunctionDeclaration", id, params, body })
       }
 
 Signature

@@ -9,6 +9,13 @@ export function zip<T1, T2>(first: Array<T1>, second: Array<T2>): Array<[T1, T2]
   return zipped
 }
 
+/**
+ * Check if a given (query) value is in a list of values.
+ *
+ * @param query
+ * @param values
+ * @returns true if the query value is in the list of values, false otherwise.
+ */
 export function isAny<T1, T2>(query: T1, values: T2[]): boolean {
   return query ? values.some(v => v === query) : false
 }

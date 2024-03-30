@@ -42,7 +42,7 @@ export class Stack<T> implements IStack<T> {
    * @param items items to be pushed onto the stack
    */
   public pushR(...items: T[]): void {
-    items.reverse().map(item => this.storage.push(item))
+    this.push(...items.reverse())
   }
 
   public pop(): T | undefined {
@@ -56,7 +56,7 @@ export class Stack<T> implements IStack<T> {
    * @returns an array of the popped items
    */
   public popN(n: number): (T | undefined)[] {
-    return range(n).map(() => this.storage.pop())
+    return range(n).map(() => this.pop())
   }
 
   /**
