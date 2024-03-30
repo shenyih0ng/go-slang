@@ -69,7 +69,7 @@ export interface VariableDeclaration extends Node {
 
 export interface FunctionDeclaration extends Node {
   type: NodeType.FunctionDeclaration
-  name: Identifier
+  id: Identifier
   params: Identifier[]
   body: Block
 }

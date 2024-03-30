@@ -386,8 +386,8 @@ function peg$parse(input, options) {
   var peg$f16 = function(left, right) {
         return makeNode({ type: "VariableDeclaration", left, right })
       };
-  var peg$f17 = function(name, params, body) {
-        return makeNode({ type: "FunctionDeclaration", name, params, body })
+  var peg$f17 = function(id, params, body) {
+        return makeNode({ type: "FunctionDeclaration", id, params, body })
       };
   var peg$f18 = function(params) { return params ?? [] };
   var peg$f19 = function(statements) {
