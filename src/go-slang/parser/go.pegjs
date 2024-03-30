@@ -47,7 +47,9 @@ TopLevelDeclaration
     / FunctionDeclaration
 
 Statement
-    = Declaration
+    = SelectStatement
+    / GoStatement
+    / Declaration
     / SimpleStatement
     / ReturnStatement
     / IfStatement
@@ -60,7 +62,8 @@ Declaration
     = VariableDeclaration
 
 SimpleStatement
-    = ShortVariableDeclaration
+    = SendStatement
+    / ShortVariableDeclaration
     / Assignment
     / ExpressionStatement
 
@@ -145,6 +148,7 @@ UnaryExpression
 UnaryOperator
     = "+" 
     / "-"
+    / "<-"
 
 MultiplicativeExpression
     = head: UnaryExpression
@@ -184,6 +188,46 @@ CallExpression
     = callee:PrimaryExpression "(" args:ExpressionList? ")" EOS {
         return makeNode({ type: "CallExpression", callee, args: args ?? [] })
       }
+
+/* Select Statement */
+
+SelectStatement "select statement"
+    = SELECT_TOKEN _ "{" _ cases:CommClause* _ "}" EOS {
+        return makeNode({ type: "SelectStatement", cases })
+      }
+
+CommClause
+    = pred:CommCase __ ":" _ statements:Statement* EOS {
+        return makeNode({ type: "CommClause", pred, statements })
+      }
+CommCase
+    = CASE_TOKEN _ statement:(SendStatement / ReceiveStatement) EOS { return statement }
+    / DEFAULT_TOKEN { return [] }
+
+ReceiveStatement
+    = left:( ExpressionList __ "=" / IdentifierList __ ":=" )? __ right:ReceiveExpression EOS {
+        return makeNode({ type: "ReceiveStatement", left, right })
+      }
+
+ReceiveExpression
+    = Expression
+
+/* Go Statement */
+
+GoStatement
+    = GO_TOKEN __ call:Expression EOS {
+        return makeNode({ type: "GoStatement", call })
+      }
+
+/* Send Declaration */
+
+SendStatement
+    = channel:Channel _ "<-" _ value:Expression EOS {
+        return makeNode({ type: "SendStatement", channel, value })
+      }
+
+Channel
+    = Expression
 
 /* Variable Declaration */
 
