@@ -201,11 +201,11 @@ CommClause
         return makeNode({ type: "CommClause", pred, statements })
       }
 CommCase
-    = CASE_TOKEN _ statement:(ReceiveStatement / SendStatement) EOS { return statement }
+    = CASE_TOKEN _ statement:(SendStatement / ReceiveStatement) EOS { return statement }
     / DEFAULT_TOKEN { return [] }
 
 ReceiveStatement
-    = left:( ExpressionList __ "=" / IdentifierList __ ":=" ) __ right:ReceiveExpression EOS {
+    = left:( ExpressionList __ "=" / IdentifierList __ ":=" )? __ right:ReceiveExpression EOS {
         return makeNode({ type: "ReceiveStatement", left, right })
       }
 
