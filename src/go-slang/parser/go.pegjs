@@ -205,7 +205,7 @@ CommCase
     / DEFAULT_TOKEN { return [] }
 
 ReceiveStatement
-    = left:( ExpressionList __ "=" / IdentifierList __ ":=" )* __ right:ReceiveExpression EOS {
+    = left:( ExpressionList __ "=" / IdentifierList __ ":=" ) __ right:ReceiveExpression EOS {
         return makeNode({ type: "ReceiveStatement", left, right })
       }
 
