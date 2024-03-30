@@ -7,6 +7,7 @@ interface Frame {
   bindings: Map<string, any>
   parent: Maybe<Frame>
 }
+
 export class Environment {
   private frameId = 0
   private frameMap = new Map<number, Frame>()
