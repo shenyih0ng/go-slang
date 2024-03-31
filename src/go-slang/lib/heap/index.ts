@@ -7,6 +7,7 @@ import {
   CommandType,
   EnvOp,
   Node,
+  PopS,
   UnaryOp,
   VarDeclOp,
   isCommand,
@@ -78,6 +79,8 @@ export class Heap {
           return this.allocateClosureOp(value)
         case CommandType.EnvOp:
           return this.allocateEnvOp(value)
+        case CommandType.PopSOp:
+          return this.allocateTaggedPtr(PointerTag.PopSOp)
       }
     }
 
@@ -154,6 +157,8 @@ export class Heap {
           type: CommandType.EnvOp,
           envId: this.memory.getInt16(mem_addr + 1)
         } as EnvOp
+      case PointerTag.PopSOp:
+        return PopS
     }
   }
 

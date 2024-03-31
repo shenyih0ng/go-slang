@@ -10,5 +10,6 @@ export enum PointerTag {
   CallOp,
   BuiltInOp,
   ClosureOp,
-  EnvOp
+  EnvOp,
+  PopSOp
 }
