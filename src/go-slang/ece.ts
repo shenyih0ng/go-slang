@@ -35,7 +35,6 @@ import {
   IfStatement,
   Instruction,
   Literal,
-  Node,
   NodeType,
   PopS,
   PopTillM,
@@ -50,7 +49,7 @@ import {
   VariableDeclaration
 } from './types'
 
-type Control = Stack<Instruction>
+type Control = Stack<Instruction | HeapAddress>
 type Stash = Stack<HeapAddress>
 type Builtins = Map<number, (...args: any[]) => any>
 
@@ -70,13 +69,14 @@ const CALL_MAIN: CallExpression = {
 }
 
 export function evaluate(program: SourceFile, slangContext: SlangContext): Value {
-  const C = new Stack<Instruction>()
+  const C = new Stack<Instruction | HeapAddress>()
   const S = new Stack<any>()
   const E = new Environment({ ...PREDECLARED_IDENTIFIERS })
 
   // `SourceFile` is the root node of the AST which has latest (monotonically increasing) uid of all AST nodes
   // Therefore, the next uid to be used to track AST nodes is the uid of SourceFile + 1
   const A = new AstMap((program.uid as number) + 1)
+  const H = new Heap(A)
 
   // inject predeclared functions into the global environment
   const B = new Map<number, (...args: any[]) => any>()
@@ -95,10 +95,10 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
   const Context = { C, S, E, B, H, A }
 
   // start the program by calling `main`
-  C.pushR(program, CALL_MAIN)
+  C.pushR(H.alloc(program), H.alloc(CALL_MAIN))
 
   while (!C.isEmpty()) {
-    const inst = C.pop() as Instruction
+    const inst = H.resolve(C.pop()) as Instruction
 
     if (!interpreter.hasOwnProperty(inst.type)) {
       slangContext.errors.push(new UnknownInstructionError(inst.type))
@@ -112,13 +112,16 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
     }
   }
 
+  // TEMP: for debugging purposes
+  console.log('Total memory allocated: ', H._debug_num_allocations() * 8, 'bytes')
+
   return 'Program exited'
 }
 
 const interpreter: {
   [key: string]: (inst: Instruction, context: Context) => RuntimeSourceError | void
 } = {
-  SourceFile: ({ topLevelDecls }: SourceFile, { C }) => C.pushR(...topLevelDecls),
+  SourceFile: ({ topLevelDecls }: SourceFile, { C, H }) => C.pushR(...H.allocM(topLevelDecls)),
 
   FunctionDeclaration: (funcDeclNode: FunctionDeclaration, { E, A }) => {
     const { id, uid: funcDeclNodeUid } = funcDeclNode
@@ -195,12 +198,12 @@ const interpreter: {
   BinaryExpression: ({ left, right, operator }: BinaryExpression, { C }) =>
     C.pushR(left, right, { type: CommandType.BinaryOp, operator: operator }),
 
-  CallExpression: ({ callee, args }: CallExpression, { C }) =>
-    C.pushR(callee, ...args, {
-      type: CommandType.CallOp,
-      calleeName: callee.name,
-      arity: args.length
-    }),
+  CallExpression: ({ callee, args }: CallExpression, { C, H, A }) =>
+    C.pushR(
+      H.alloc(callee),
+      ...H.allocM(args),
+      H.alloc({ type: CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length })
+    ),
 
   ExpressionStatement: ({ expression }: ExpressionStatement, { C }) => C.pushR(expression, PopS),
 
@@ -216,12 +219,12 @@ const interpreter: {
   },
 
   BinaryOp: ({ operator }: BinaryOp, { S, H }) => {
-    const [left, right] = S.popNR(2).map(H.resolve.bind(H))
+    const [left, right] = H.resolveM(S.popNR(2))
     S.push(H.alloc(evaluateBinaryOp(operator, left, right)))
   },
 
-  CallOp: ({ calleeName, arity }: CallOp, { C, S, E, H, A }) => {
-    const values = S.popNR(arity).map(H.resolve.bind(H))
+  CallOp: ({ calleeNodeId, arity }: CallOp, { C, S, E, H, A }) => {
+    const values = H.resolveM(S.popNR(arity))
     const op = H.resolve(S.pop()) as ClosureOp | BuiltinOp
 
     if (op.type === CommandType.BuiltinOp) {
@@ -234,7 +237,8 @@ const interpreter: {
     const paramNames = params.map(({ name }) => name)
 
     if (paramNames.length !== values.length) {
-      return new FuncArityError(calleeName, values.length, params.length)
+      const calleeId = A.get(calleeNodeId) as Identifier
+      return new FuncArityError(calleeId.name, values.length, params.length)
     }
 
     C.pushR(body, RetMarker, { type: CommandType.EnvOp, envId: E.id() })
