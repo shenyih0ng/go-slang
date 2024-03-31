@@ -62,12 +62,6 @@ interface Context {
   A: AstMap
 }
 
-const CALL_MAIN: CallExpression = {
-  type: NodeType.CallExpression,
-  callee: { type: NodeType.Identifier, name: 'main' },
-  args: []
-}
-
 export function evaluate(program: SourceFile, slangContext: SlangContext): Value {
   const C = new Stack<Instruction | HeapAddress>()
   const S = new Stack<any>()
@@ -95,6 +89,11 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
   const Context = { C, S, E, B, H, A }
 
   // start the program by calling `main`
+  const CALL_MAIN: CallExpression = {
+    type: NodeType.CallExpression,
+    callee: { type: NodeType.Identifier, name: 'main' },
+    args: []
+  }
   C.pushR(H.alloc(program), H.alloc(CALL_MAIN))
 
   while (!C.isEmpty()) {
