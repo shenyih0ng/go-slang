@@ -1,4 +1,5 @@
-import { BuiltinOp, ClosureOp, CommandType, isCommand } from '../../types'
+import { BuiltinOp, CallOp, ClosureOp, CommandType, Node, isCommand, isNode } from '../../types'
+import { AstMap } from '../astMap'
 import { DEFAULT_HEAP_SIZE, WORD_SIZE } from './config'
 import { PointerTag } from './tags'
 
@@ -8,7 +9,11 @@ export class Heap {
   private memory: DataView
   private free: number = 0 // n_words to the next free block
 
-  constructor(n_words?: number) {
+  // we need to keep track of the AstMap to be able to resolve AST nodes stored in the heap
+  private astMap: AstMap
+
+  constructor(astMap: AstMap, n_words?: number) {
+    this.astMap = astMap
     this.memory = new DataView(new ArrayBuffer((n_words ?? DEFAULT_HEAP_SIZE) * WORD_SIZE))
 
     // Allocate special values in the heap to avoid re-allocating them
@@ -36,9 +41,17 @@ export class Heap {
       return this.allocateNumber(value)
     }
 
+    // AST nodes
+    if (isNode(value)) {
+      // we need to track the AST node to be able to resolve it later
+      return this.allocateAstNode(this.astMap.track(value))
+    }
+
     // ECE operations
     if (isCommand(value)) {
       switch (value.type) {
+        case CommandType.CallOp:
+          return this.allocateCallOp(value)
         case CommandType.BuiltinOp:
           return this.allocateBuiltinOp(value)
         case CommandType.ClosureOp:
@@ -47,6 +60,10 @@ export class Heap {
     }
 
     return value
+  }
+
+  public allocM(values: any[]): HeapAddress[] {
+    return values.map(this.alloc.bind(this))
   }
 
   /**
@@ -69,6 +86,14 @@ export class Heap {
         return true
       case PointerTag.Number:
         return this.get(heap_addr + 1)
+      case PointerTag.AstNode:
+        return this.astMap.get(this.memory.getInt16(mem_addr + 1))
+      case PointerTag.CallOp:
+        return {
+          type: CommandType.CallOp,
+          calleeNodeId: this.memory.getInt16(mem_addr + 1),
+          arity: this.memory.getInt16(mem_addr + 3)
+        } as CallOp
       case PointerTag.BuiltInOp:
         return {
           type: CommandType.BuiltinOp,
@@ -84,6 +109,10 @@ export class Heap {
     }
   }
 
+  public resolveM(heap_addrs: any[]): any[] {
+    return heap_addrs.map(this.resolve.bind(this))
+  }
+
   private allocateBoolean(value: boolean): HeapAddress {
     // booleans are represented as tagged pointers with no underlying data
     return this.allocateTaggedPtr(value ? PointerTag.True : PointerTag.False, 0)
@@ -95,6 +124,29 @@ export class Heap {
 
     const data_heap_addr = ptr_heap_addr + 1
     this.set(data_heap_addr, value)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of an AST Node: [0:tag, 1-2:astId, 3-4:_unused_, 5-6:size, 7:_unused_] (1 word) */
+  private allocateAstNode({ uid }: Node): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.AstNode)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    this.memory.setInt16(ptr_mem_addr + 1, uid as number)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of a CallOp: [0:tag, 1-2:calleeNodeId, 3-4:arity, 5-6:size, 7:_unused_] (1 word) */
+  private allocateCallOp({ calleeNodeId, arity }: CallOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.CallOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    // NOTE: assume there will be no more than 2^16 AST nodes
+    this.memory.setInt16(ptr_mem_addr + 1, calleeNodeId)
+    // NOTE: assume there will be no more than 2^16 arguments
+    this.memory.setInt16(ptr_mem_addr + 3, arity)
 
     return ptr_heap_addr
   }

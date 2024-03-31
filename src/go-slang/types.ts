@@ -54,6 +54,10 @@ export interface Node {
   loc?: NodeLocation
 }
 
+export function isNode(v: any): boolean {
+  return v && v.type && NodeType[v.type]
+}
+
 export interface SourceFile extends Node {
   type: NodeType.SourceFile
   topLevelDecls: TopLevelDeclaration[]
@@ -241,7 +245,7 @@ export interface ClosureOp extends Command {
 export interface CallOp extends Command {
   type: CommandType.CallOp
   arity: number
-  calleeName: string
+  calleeNodeId: number
 }
 
 export interface BranchOp extends Command {
