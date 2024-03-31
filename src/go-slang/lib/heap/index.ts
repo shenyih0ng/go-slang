@@ -5,6 +5,7 @@ import {
   CommandType,
   EnvOp,
   Node,
+  VarDeclOp,
   isCommand,
   isNode
 } from '../../types'
@@ -59,6 +60,8 @@ export class Heap {
     // ECE operations
     if (isCommand(value)) {
       switch (value.type) {
+        case CommandType.VarDeclOp:
+          return this.allocateVarDeclOp(value)
         case CommandType.CallOp:
           return this.allocateCallOp(value)
         case CommandType.BuiltinOp:
@@ -99,6 +102,12 @@ export class Heap {
         return this.get(heap_addr + 1)
       case PointerTag.AstNode:
         return this.astMap.get(this.memory.getInt16(mem_addr + 1))
+      case PointerTag.VarDeclOp:
+        return {
+          type: CommandType.VarDeclOp,
+          idNodeUid: this.memory.getInt16(mem_addr + 1),
+          zeroValue: this.memory.getInt8(mem_addr + 7) === 1
+        } as VarDeclOp
       case PointerTag.CallOp:
         return {
           type: CommandType.CallOp,
@@ -150,6 +159,17 @@ export class Heap {
 
     const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
     this.memory.setInt16(ptr_mem_addr + 1, uid as number)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of a VarDeclOp: [0:tag, 1-2:idNodeUid, 3-4:_unused_, 5-6:size, 7:isZeroValue] (1 word) */
+  private allocateVarDeclOp({ zeroValue, idNodeUid }: VarDeclOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.VarDeclOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    this.memory.setInt16(ptr_mem_addr + 1, idNodeUid)
+    this.memory.setInt8(ptr_mem_addr + 7, zeroValue ? 1 : 0)
 
     return ptr_heap_addr
   }

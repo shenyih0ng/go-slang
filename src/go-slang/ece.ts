@@ -172,8 +172,8 @@ const interpreter: {
 
   ContinueStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForPostMarker, ForStartMarker))),
 
-  VariableDeclaration: ({ left, right }: VariableDeclaration, { C, H }) => {
-    const decls = left.map(({ name }) => ({ type: CommandType.VarDeclOp, name })) as Instruction[]
+  VariableDeclaration: ({ left, right }: VariableDeclaration, { C, H, A }) => {
+    const decls = A.trackM(left).map(({ uid }) => ({ type: CommandType.VarDeclOp, idNodeUid: uid }))
     return right.length === 0
       ? // if there is no right side, we push zero value for each declaration
         C.pushR(...H.allocM(decls.map(decl => ({ ...decl, zeroValue: true }))))
@@ -214,8 +214,10 @@ const interpreter: {
   ExpressionStatement: ({ expression }: ExpressionStatement, { C, H }) =>
     C.pushR(...H.allocM([expression, PopS])),
 
-  VarDeclOp: ({ name, zeroValue }: VarDeclOp, { S, E, H }) =>
-    zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop())),
+  VarDeclOp: ({ idNodeUid, zeroValue }: VarDeclOp, { S, E, H, A }) => {
+    const name = A.get<Identifier>(idNodeUid).name
+    zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop()))
+  },
 
   AssignOp: ({ name }: AssignOp, { S, E, H }) =>
     !E.assign(name, H.resolve(S.pop())) ? new UndefinedError(name) : void {},
@@ -240,11 +242,11 @@ const interpreter: {
 
     // handle ClosureOp
     const { funcDeclNodeUid, envId } = op
-    const { params, body } = A.get(funcDeclNodeUid) as FunctionDeclaration
+    const { params, body } = A.get<FunctionDeclaration>(funcDeclNodeUid)
     const paramNames = params.map(({ name }) => name)
 
     if (paramNames.length !== values.length) {
-      const calleeId = A.get(calleeNodeId) as Identifier
+      const calleeId = A.get<Identifier>(calleeNodeId)
       return new FuncArityError(calleeId.name, values.length, params.length)
     }
 

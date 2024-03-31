@@ -218,7 +218,7 @@ export function isCommand(v: any): boolean {
 export interface VarDeclOp extends Command {
   type: CommandType.VarDeclOp
   zeroValue: boolean
-  name: string
+  idNodeUid: number
 }
 
 export interface AssignOp extends Command {

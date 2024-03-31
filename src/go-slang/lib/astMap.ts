@@ -22,4 +22,12 @@ export class AstMap extends Map<number, Node> {
     this.set(node.uid, node)
     return node
   }
+
+  public trackM(nodes: Node[]): Node[] {
+    return nodes.map(this.track.bind(this))
+  }
+
+  public get<T extends Node>(uid: number): T {
+    return super.get(uid) as T
+  }
 }
