@@ -1,5 +1,3 @@
-import { PREDECLARED_IDENTIFIERS } from './predeclared'
-
 type Maybe<T> = T | null
 
 interface Frame {
@@ -64,8 +62,4 @@ export class Environment {
     this.currFrame = this.newFrame(bindings, this.currFrame)
     return this
   }
-}
-
-export function createGlobalEnvironment(): Environment {
-  return new Environment({ ...PREDECLARED_IDENTIFIERS })
 }

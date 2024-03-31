@@ -3,10 +3,11 @@ import { Stack } from '../cse-machine/utils'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import { Value } from '../types'
 import { FuncArityError, UndefinedError, UnknownInstructionError } from './error'
+import { AstMap } from './lib/astMap'
 import { evaluateBinaryOp } from './lib/binaryOp'
-import { Environment, createGlobalEnvironment } from './lib/env'
+import { Environment } from './lib/env'
 import { Heap, HeapAddress } from './lib/heap'
-import { PREDECLARED_FUNCTIONS } from './lib/predeclared'
+import { PREDECLARED_FUNCTIONS, PREDECLARED_IDENTIFIERS } from './lib/predeclared'
 import { zip, isAny } from './lib/utils'
 import {
   ApplyBuiltinOp,
@@ -52,7 +53,6 @@ import {
 type Control = Stack<Instruction>
 type Stash = Stack<HeapAddress>
 type Builtins = Map<number, (...args: any[]) => any>
-type AstMap = Map<number, Node>
 
 interface Context {
   C: Control
@@ -72,9 +72,11 @@ const CALL_MAIN: CallExpression = {
 export function evaluate(program: SourceFile, slangContext: SlangContext): Value {
   const C = new Stack<Instruction>()
   const S = new Stack<any>()
-  const E = createGlobalEnvironment()
-  const H = new Heap()
-  const A = new Map<number, Node>()
+  const E = new Environment({ ...PREDECLARED_IDENTIFIERS })
+
+  // `SourceFile` is the root node of the AST which has latest (monotonically increasing) uid of all AST nodes
+  // Therefore, the next uid to be used to track AST nodes is the uid of SourceFile + 1
+  const A = new AstMap((program.uid as number) + 1)
 
   // inject predeclared functions into the global environment
   const B = new Map<number, (...args: any[]) => any>()
