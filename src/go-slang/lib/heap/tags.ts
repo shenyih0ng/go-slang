@@ -5,5 +5,6 @@ export enum PointerTag {
   AstNode,
   CallOp,
   BuiltInOp,
-  ClosureOp
+  ClosureOp,
+  EnvOp
 }

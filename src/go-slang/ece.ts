@@ -111,9 +111,6 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
     }
   }
 
-  // TEMP: for debugging purposes
-  console.log('Total memory allocated: ', H._debug_num_allocations() * 8, 'bytes')
-
   return 'Program exited'
 }
 
@@ -128,8 +125,8 @@ const interpreter: {
     E.declare(id.name, { type: CommandType.ClosureOp, funcDeclNodeUid, envId: E.id() } as ClosureOp)
   },
 
-  Block: ({ statements }: Block, { C, E }) => {
-    C.pushR(...statements, { type: CommandType.EnvOp, envId: E.id() })
+  Block: ({ statements }: Block, { C, E, H }) => {
+    C.pushR(...statements, H.alloc({ type: CommandType.EnvOp, envId: E.id() }))
     E.extend({})
   },
 
@@ -240,7 +237,7 @@ const interpreter: {
       return new FuncArityError(calleeId.name, values.length, params.length)
     }
 
-    C.pushR(body, RetMarker, { type: CommandType.EnvOp, envId: E.id() })
+    C.pushR(body, RetMarker, H.alloc({ type: CommandType.EnvOp, envId: E.id() }))
     // set the environment to the closure's environment
     E.setId(envId).extend(Object.fromEntries(zip(paramNames, values)))
   },

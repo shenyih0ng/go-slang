@@ -1,4 +1,13 @@
-import { BuiltinOp, CallOp, ClosureOp, CommandType, Node, isCommand, isNode } from '../../types'
+import {
+  BuiltinOp,
+  CallOp,
+  ClosureOp,
+  CommandType,
+  EnvOp,
+  Node,
+  isCommand,
+  isNode
+} from '../../types'
 import { AstMap } from '../astMap'
 import { DEFAULT_HEAP_SIZE, WORD_SIZE } from './config'
 import { PointerTag } from './tags'
@@ -56,6 +65,8 @@ export class Heap {
           return this.allocateBuiltinOp(value)
         case CommandType.ClosureOp:
           return this.allocateClosureOp(value)
+        case CommandType.EnvOp:
+          return this.allocateEnvOp(value)
       }
     }
 
@@ -106,6 +117,11 @@ export class Heap {
           funcDeclNodeUid: this.memory.getInt16(mem_addr + 1),
           envId: this.memory.getInt16(mem_addr + 3)
         } as ClosureOp
+      case PointerTag.EnvOp:
+        return {
+          type: CommandType.EnvOp,
+          envId: this.memory.getInt16(mem_addr + 1)
+        } as EnvOp
     }
   }
 
@@ -173,6 +189,17 @@ export class Heap {
     this.memory.setInt16(ptr_mem_addr + 1, funcDeclNodeUid)
     // NOTE: assume there will be no more than 2^16 envs
     this.memory.setInt16(ptr_mem_addr + 3, envId)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of an EnvOp: [0:tag, 1-2:envId, 3-4:_unused_, 5-6:size, 7:_unused_] (1 word) */
+  private allocateEnvOp({ envId }: EnvOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.EnvOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    // NOTE: assume there will be no more than 2^16 envs
+    this.memory.setInt16(ptr_mem_addr + 1, envId)
 
     return ptr_heap_addr
   }
