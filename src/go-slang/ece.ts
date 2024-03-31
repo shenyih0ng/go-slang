@@ -126,23 +126,31 @@ const interpreter: {
   },
 
   Block: ({ statements }: Block, { C, E, H }) => {
-    C.pushR(...statements, H.alloc({ type: CommandType.EnvOp, envId: E.id() }))
+    C.pushR(...H.allocM([...statements, { type: CommandType.EnvOp, envId: E.id() }]))
     E.extend({})
   },
 
-  ReturnStatement: ({ expression }: ReturnStatement, { C }) =>
-    C.pushR(expression, PopTillM(RetMarker)),
+  ReturnStatement: ({ expression }: ReturnStatement, { C, H }) =>
+    C.pushR(H.alloc(expression), H.alloc(PopTillM(RetMarker))),
 
-  IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C }) => {
+  IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C, H }) => {
     const branchOp: BranchOp = { type: CommandType.BranchOp, cons, alt }
-    stmt ? C.pushR(stmt, cond, branchOp) : C.pushR(cond, branchOp)
+    stmt ? C.pushR(...H.allocM([stmt, cond, branchOp])) : C.pushR(...H.allocM([cond, branchOp]))
   },
 
-  ForStatement: (inst: ForStatement, { C }) => {
+  ForStatement: (inst: ForStatement, { C, H }) => {
     const { form, block: forBlock } = inst
     if (form === null || form.type === ForFormType.ForCondition) {
       const branch = { type: CommandType.BranchOp, cons: forBlock, alt: PopTillM(ForEndMarker) }
-      C.pushR(form ? form.expression : True, branch as BranchOp, ForStartMarker, inst, ForEndMarker)
+      C.pushR(
+        ...H.allocM([
+          form ? form.expression : True,
+          branch as BranchOp,
+          ForStartMarker,
+          inst,
+          ForEndMarker
+        ])
+      )
     } else if (form.type === ForFormType.ForClause) {
       const { init, cond, post } = form
       const forCond = {
@@ -156,27 +164,27 @@ const interpreter: {
           ]
         }
       } as ForStatement
-      C.push({ type: NodeType.Block, statements: [init ?? EmptyStmt, forCond] })
+      C.push(H.alloc({ type: NodeType.Block, statements: [init ?? EmptyStmt, forCond] }))
     }
   },
 
-  BreakStatement: (_inst, { C }) => C.push(PopTillM(ForEndMarker)),
+  BreakStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForEndMarker))),
 
-  ContinueStatement: (_inst, { C }) => C.push(PopTillM(ForPostMarker, ForStartMarker)),
+  ContinueStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForPostMarker, ForStartMarker))),
 
-  VariableDeclaration: ({ left, right }: VariableDeclaration, { C }) => {
+  VariableDeclaration: ({ left, right }: VariableDeclaration, { C, H }) => {
     const decls = left.map(({ name }) => ({ type: CommandType.VarDeclOp, name })) as Instruction[]
     return right.length === 0
       ? // if there is no right side, we push zero value for each declaration
-        C.pushR(...decls.map(decl => ({ ...decl, zeroValue: true })))
+        C.pushR(...H.allocM(decls.map(decl => ({ ...decl, zeroValue: true }))))
       : // assume: left.length === right.length
-        C.pushR(...right, ...decls.reverse())
+        C.pushR(...H.allocM(right), ...H.allocM(decls.reverse()))
   },
 
-  Assignment: ({ left, right }: Assignment, { C }) => {
+  Assignment: ({ left, right }: Assignment, { C, H }) => {
     const ids = left as Identifier[] // assume: left is always an array of identifiers
     const asgmts = ids.map(({ name }) => ({ type: CommandType.AssignOp, name })) as Instruction[]
-    C.pushR(...right, ...asgmts.reverse())
+    C.pushR(...H.allocM(right), ...H.allocM(asgmts.reverse()))
   },
 
   EmptyStatement: () => void {},
@@ -188,20 +196,23 @@ const interpreter: {
     return value === null ? new UndefinedError(name) : S.push(H.alloc(value))
   },
 
-  UnaryExpression: ({ argument, operator }: UnaryExpression, { C }) =>
-    C.pushR(argument, { type: CommandType.UnaryOp, operator }),
+  UnaryExpression: ({ argument, operator }: UnaryExpression, { C, H }) =>
+    C.pushR(H.alloc(argument), H.alloc({ type: CommandType.UnaryOp, operator })),
 
-  BinaryExpression: ({ left, right, operator }: BinaryExpression, { C }) =>
-    C.pushR(left, right, { type: CommandType.BinaryOp, operator: operator }),
+  BinaryExpression: ({ left, right, operator }: BinaryExpression, { C, H }) =>
+    C.pushR(...H.allocM([left, right, { type: CommandType.BinaryOp, operator }])),
 
   CallExpression: ({ callee, args }: CallExpression, { C, H, A }) =>
     C.pushR(
-      H.alloc(callee),
-      ...H.allocM(args),
-      H.alloc({ type: CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length })
+      ...H.allocM([
+        callee,
+        ...args,
+        { type: CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }
+      ])
     ),
 
-  ExpressionStatement: ({ expression }: ExpressionStatement, { C }) => C.pushR(expression, PopS),
+  ExpressionStatement: ({ expression }: ExpressionStatement, { C, H }) =>
+    C.pushR(...H.allocM([expression, PopS])),
 
   VarDeclOp: ({ name, zeroValue }: VarDeclOp, { S, E, H }) =>
     zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop())),
@@ -224,7 +235,7 @@ const interpreter: {
     const op = H.resolve(S.pop()) as ClosureOp | BuiltinOp
 
     if (op.type === CommandType.BuiltinOp) {
-      return C.pushR({ type: CommandType.ApplyBuiltinOp, builtinOp: op, values })
+      return C.pushR(H.alloc({ type: CommandType.ApplyBuiltinOp, builtinOp: op, values }))
     }
 
     // handle ClosureOp
@@ -237,13 +248,13 @@ const interpreter: {
       return new FuncArityError(calleeId.name, values.length, params.length)
     }
 
-    C.pushR(body, RetMarker, H.alloc({ type: CommandType.EnvOp, envId: E.id() }))
+    C.pushR(...H.allocM([body, RetMarker, { type: CommandType.EnvOp, envId: E.id() }]))
     // set the environment to the closure's environment
     E.setId(envId).extend(Object.fromEntries(zip(paramNames, values)))
   },
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>
-    void (H.resolve(S.pop()) ? C.pushR(cons) : alt && C.pushR(alt)),
+    void (H.resolve(S.pop()) ? C.pushR(H.alloc(cons)) : alt && C.pushR(H.alloc(alt))),
 
   ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { S, B, H }) =>
     void S.push(H.alloc(B.get(id)!(...values))),
