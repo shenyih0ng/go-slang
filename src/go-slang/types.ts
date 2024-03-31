@@ -11,6 +11,7 @@ export enum NodeType {
   ExpressionStatement = 'ExpressionStatement',
   EmptyStatement = 'EmptyStatement',
   Assignment = 'Assignment',
+  Operator = 'Operator',
   UnaryExpression = 'UnaryExpression',
   BinaryExpression = 'BinaryExpression',
   Identifier = 'Identifier',
@@ -158,12 +159,6 @@ export const True: Literal = { type: NodeType.Literal, value: true }
 
 export type UnaryOperator = '+' | '-'
 
-export interface UnaryExpression extends Node {
-  type: NodeType.UnaryExpression
-  operator: UnaryOperator
-  argument: Expression
-}
-
 export type BinaryOperator =
   | '+'
   | '-'
@@ -179,9 +174,20 @@ export type BinaryOperator =
   | '>'
   | '>='
 
+export interface Operator extends Node {
+  type: NodeType.Operator
+  op: UnaryOperator | BinaryOperator
+}
+
+export interface UnaryExpression extends Node {
+  type: NodeType.UnaryExpression
+  operator: Operator
+  argument: Expression
+}
+
 export interface BinaryExpression extends Node {
   type: NodeType.BinaryExpression
-  operator: BinaryOperator
+  operator: Operator
   left: Expression
   right: Expression
 }
@@ -228,12 +234,12 @@ export interface AssignOp extends Command {
 
 export interface UnaryOp extends Command {
   type: CommandType.UnaryOp
-  operator: UnaryOperator
+  opNodeId: number
 }
 
 export interface BinaryOp extends Command {
   type: CommandType.BinaryOp
-  operator: BinaryOperator
+  opNodeId: number
 }
 
 export interface ClosureOp extends Command {

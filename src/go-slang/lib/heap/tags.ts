@@ -4,6 +4,8 @@ export enum PointerTag {
   Number,
   AstNode,
   VarDeclOp,
+  UnaryOp,
+  BinaryOp,
   CallOp,
   BuiltInOp,
   ClosureOp,

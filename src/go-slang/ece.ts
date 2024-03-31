@@ -36,6 +36,7 @@ import {
   Instruction,
   Literal,
   NodeType,
+  Operator,
   PopS,
   PopTillM,
   PopTillMOp,
@@ -196,11 +197,11 @@ const interpreter: {
     return value === null ? new UndefinedError(name) : S.push(H.alloc(value))
   },
 
-  UnaryExpression: ({ argument, operator }: UnaryExpression, { C, H }) =>
-    C.pushR(H.alloc(argument), H.alloc({ type: CommandType.UnaryOp, operator })),
+  UnaryExpression: ({ argument, operator: op }: UnaryExpression, { C, H, A }) =>
+    C.pushR(...H.allocM([argument, { type: CommandType.UnaryOp, opNodeId: A.track(op).uid }])),
 
-  BinaryExpression: ({ left, right, operator }: BinaryExpression, { C, H }) =>
-    C.pushR(...H.allocM([left, right, { type: CommandType.BinaryOp, operator }])),
+  BinaryExpression: ({ left, right, operator: op }: BinaryExpression, { C, H, A }) =>
+    C.pushR(...H.allocM([left, right, { type: CommandType.BinaryOp, opNodeId: A.track(op).uid }])),
 
   CallExpression: ({ callee, args }: CallExpression, { C, H, A }) =>
     C.pushR(
@@ -222,14 +223,14 @@ const interpreter: {
   AssignOp: ({ name }: AssignOp, { S, E, H }) =>
     !E.assign(name, H.resolve(S.pop())) ? new UndefinedError(name) : void {},
 
-  UnaryOp: ({ operator }: UnaryOp, { S, H }) => {
+  UnaryOp: ({ opNodeId }: UnaryOp, { S, H, A }) => {
     const operand = H.resolve(S.pop())
-    S.push(H.alloc(operator === '-' ? -operand : operand))
+    S.push(H.alloc(A.get<Operator>(opNodeId).op === '-' ? -operand : operand))
   },
 
-  BinaryOp: ({ operator }: BinaryOp, { S, H }) => {
+  BinaryOp: ({ opNodeId }: BinaryOp, { S, H, A }) => {
     const [left, right] = H.resolveM(S.popNR(2))
-    S.push(H.alloc(evaluateBinaryOp(operator, left, right)))
+    S.push(H.alloc(evaluateBinaryOp(A.get<Operator>(opNodeId).op, left, right)))
   },
 
   CallOp: ({ calleeNodeId, arity }: CallOp, { C, S, E, H, A }) => {

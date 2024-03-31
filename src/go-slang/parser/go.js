@@ -373,8 +373,8 @@ function peg$parse(input, options) {
   var peg$f8 = function(digits) {
         return buildLiteral(buildInteger(digits, 16))
       };
-  var peg$f9 = function(operator, argument) {
-        return makeNode({type: "UnaryExpression", operator, argument})
+  var peg$f9 = function(op, argument) {
+        return makeNode({type: "UnaryExpression", operator: makeOperator(op), argument})
  	  };
   var peg$f10 = function(head, tail) { return buildBinaryExpression(head, tail); };
   var peg$f11 = function(head, tail) { return buildBinaryExpression(head, tail); };
@@ -5117,16 +5117,20 @@ function peg$parse(input, options) {
     function makeNode(node) {
         return { ...node, uid: uid++, loc: location() };
     }
+    
+    function makeOperator(op) {
+        return makeNode({ type: "Operator", op });
+    }
 
     function buildLiteral(value) {
         return makeNode({ type: "Literal", value: value});
     }
-    
+ 
     function buildBinaryExpression(head, tail) {
         return tail.reduce(function(result, element) {
             return makeNode({
                 type: "BinaryExpression",
-                operator: element[1],
+                operator: makeOperator(element[1]), 
                 left: result,
                 right: element[3]
             });

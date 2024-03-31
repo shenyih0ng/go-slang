@@ -20,16 +20,20 @@
     function makeNode(node) {
         return { ...node, uid: uid++, loc: location() };
     }
+    
+    function makeOperator(op) {
+        return makeNode({ type: "Operator", op });
+    }
 
     function buildLiteral(value) {
         return makeNode({ type: "Literal", value: value});
     }
-    
+ 
     function buildBinaryExpression(head, tail) {
         return tail.reduce(function(result, element) {
             return makeNode({
                 type: "BinaryExpression",
-                operator: element[1],
+                operator: makeOperator(element[1]), 
                 left: result,
                 right: element[3]
             });
@@ -141,8 +145,8 @@ HexDigit
 UnaryExpression
     = CallExpression 
     / PrimaryExpression
-    / operator:UnaryOperator argument:UnaryExpression {
-        return makeNode({type: "UnaryExpression", operator, argument})
+    / op:UnaryOperator argument:UnaryExpression {
+        return makeNode({type: "UnaryExpression", operator: makeOperator(op), argument})
  	  }
  
 UnaryOperator
