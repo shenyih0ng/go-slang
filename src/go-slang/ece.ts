@@ -182,9 +182,9 @@ const interpreter: {
         C.pushR(...H.allocM(right), ...H.allocM(decls.reverse()))
   },
 
-  Assignment: ({ left, right }: Assignment, { C, H }) => {
+  Assignment: ({ left, right }: Assignment, { C, H, A }) => {
     const ids = left as Identifier[] // assume: left is always an array of identifiers
-    const asgmts = ids.map(({ name }) => ({ type: CommandType.AssignOp, name })) as Instruction[]
+    const asgmts = ids.map(id => ({ type: CommandType.AssignOp, idNodeUid: A.track(id).uid }))
     C.pushR(...H.allocM(right), ...H.allocM(asgmts.reverse()))
   },
 
@@ -220,8 +220,10 @@ const interpreter: {
     zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop()))
   },
 
-  AssignOp: ({ name }: AssignOp, { S, E, H }) =>
-    !E.assign(name, H.resolve(S.pop())) ? new UndefinedError(name) : void {},
+  AssignOp: ({ idNodeUid }: AssignOp, { S, E, H, A }) => {
+    const name = A.get<Identifier>(idNodeUid).name
+    !E.assign(name, H.resolve(S.pop())) ? new UndefinedError(name) : void {}
+  },
 
   UnaryOp: ({ opNodeId }: UnaryOp, { S, H, A }) => {
     const operand = H.resolve(S.pop())

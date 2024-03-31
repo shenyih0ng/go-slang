@@ -229,7 +229,7 @@ export interface VarDeclOp extends Command {
 
 export interface AssignOp extends Command {
   type: CommandType.AssignOp
-  name: string
+  idNodeUid: number
 }
 
 export interface UnaryOp extends Command {

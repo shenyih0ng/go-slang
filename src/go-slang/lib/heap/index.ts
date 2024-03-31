@@ -1,4 +1,5 @@
 import {
+  AssignOp,
   BinaryOp,
   BuiltinOp,
   CallOp,
@@ -64,6 +65,8 @@ export class Heap {
       switch (value.type) {
         case CommandType.VarDeclOp:
           return this.allocateVarDeclOp(value)
+        case CommandType.AssignOp:
+          return this.allocateAssignOp(value)
         case CommandType.UnaryOp:
         case CommandType.BinaryOp:
           return this.allocateUnaryBinaryOp(value)
@@ -113,6 +116,11 @@ export class Heap {
           idNodeUid: this.memory.getInt16(mem_addr + 1),
           zeroValue: this.memory.getInt8(mem_addr + 7) === 1
         } as VarDeclOp
+      case PointerTag.AssignOp:
+        return {
+          type: CommandType.AssignOp,
+          idNodeUid: this.memory.getInt16(mem_addr + 1)
+        } as AssignOp
       case PointerTag.UnaryOp:
         return {
           type: CommandType.UnaryOp,
@@ -197,6 +205,16 @@ export class Heap {
     const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
     this.memory.setInt16(ptr_mem_addr + 1, idNodeUid)
     this.memory.setInt8(ptr_mem_addr + 7, zeroValue ? 1 : 0)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of an AssignOp: [0:tag, 1-2:idNodeUid, 3-4:_unused_, 5-6:size, 7:_unused_] (1 word) */
+  private allocateAssignOp({ idNodeUid }: AssignOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.AssignOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    this.memory.setInt16(ptr_mem_addr + 1, idNodeUid)
 
     return ptr_heap_addr
   }
