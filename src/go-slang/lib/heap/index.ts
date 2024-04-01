@@ -6,6 +6,7 @@ import {
   ClosureOp,
   CommandType,
   EnvOp,
+  GoRoutineOp,
   Node,
   PopS,
   UnaryOp,
@@ -72,6 +73,7 @@ export class Heap {
         case CommandType.BinaryOp:
           return this.allocateUnaryBinaryOp(value)
         case CommandType.CallOp:
+        case CommandType.GoRoutineOp:
           return this.allocateCallOp(value)
         case CommandType.BuiltinOp:
           return this.allocateBuiltinOp(value)
@@ -103,8 +105,9 @@ export class Heap {
       return heap_addr
     }
 
+    const tag = this.tag(heap_addr)
     const mem_addr = heap_addr * WORD_SIZE
-    switch (this.tag(heap_addr)) {
+    switch (tag) {
       case PointerTag.False:
         return false
       case PointerTag.True:
@@ -125,21 +128,18 @@ export class Heap {
           idNodeUid: this.memory.getInt16(mem_addr + 1)
         } as AssignOp
       case PointerTag.UnaryOp:
-        return {
-          type: CommandType.UnaryOp,
-          opNodeId: this.memory.getInt16(mem_addr + 1)
-        } as UnaryOp
       case PointerTag.BinaryOp:
         return {
-          type: CommandType.BinaryOp,
+          type: tag === PointerTag.UnaryOp ? CommandType.UnaryOp : CommandType.BinaryOp,
           opNodeId: this.memory.getInt16(mem_addr + 1)
-        } as BinaryOp
+        } as UnaryOp | BinaryOp
       case PointerTag.CallOp:
+      case PointerTag.GoRoutineOp:
         return {
-          type: CommandType.CallOp,
+          type: tag === PointerTag.CallOp ? CommandType.CallOp : CommandType.GoRoutineOp,
           calleeNodeId: this.memory.getInt16(mem_addr + 1),
           arity: this.memory.getInt16(mem_addr + 3)
-        } as CallOp
+        } as CallOp | GoRoutineOp
       case PointerTag.BuiltInOp:
         return {
           type: CommandType.BuiltinOp,
@@ -225,8 +225,10 @@ export class Heap {
   }
 
   /* Memory Layout of a CallOp: [0:tag, 1-2:calleeNodeId, 3-4:arity, 5-6:size, 7:_unused_] (1 word) */
-  private allocateCallOp({ calleeNodeId, arity }: CallOp): HeapAddress {
-    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.CallOp)
+  private allocateCallOp({ type, calleeNodeId, arity }: CallOp | GoRoutineOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(
+      type === CommandType.CallOp ? PointerTag.CallOp : PointerTag.GoRoutineOp
+    )
 
     const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
     // NOTE: assume there will be no more than 2^16 AST nodes

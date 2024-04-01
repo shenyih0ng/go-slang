@@ -181,11 +181,17 @@ const Interpreter: {
     }
 
     const { callee, args } = call as CallExpression
-    return C.pushR(...H.allocM([callee, ...args]), {
-      type: CommandType.GoRoutineOp,
-      calleeNodeId: A.track(callee).uid as number,
-      arity: args.length
-    })
+    return C.pushR(
+      ...H.allocM([
+        callee,
+        ...args,
+        {
+          type: CommandType.GoRoutineOp,
+          calleeNodeId: A.track(callee).uid as number,
+          arity: args.length
+        }
+      ])
+    )
   },
 
   EmptyStatement: () => void {},
