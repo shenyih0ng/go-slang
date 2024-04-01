@@ -8,7 +8,7 @@ export class Scheduler {
   static TIME_QUANTA = 15
 
   private slangContext: SlangContext
-  private routines: Array<[GoRoutine, TimeQuanta]> = new Array()
+  private routines: Array<[GoRoutine, TimeQuanta]> = []
 
   constructor(slangContext: SlangContext) {
     this.slangContext = slangContext
@@ -20,11 +20,12 @@ export class Scheduler {
 
   public run(): void {
     while (this.routines.length > 0) {
-      let [routine, timeQuanta] = this.routines.shift() as [GoRoutine, TimeQuanta]
+      const [routine, timeQuanta] = this.routines.shift() as [GoRoutine, TimeQuanta]
 
       let hasError: boolean = false
+      let remainingTime = timeQuanta
 
-      while (timeQuanta--) {
+      while (remainingTime--) {
         if (routine.finished()) { break } // prettier-ignore
 
         const result = routine.tick()
