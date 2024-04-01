@@ -9,6 +9,7 @@ export enum NodeType {
   BreakStatement = 'BreakStatement',
   ContinueStatement = 'ContinueStatement',
   ExpressionStatement = 'ExpressionStatement',
+  GoStatement = 'GoStatement',
   EmptyStatement = 'EmptyStatement',
   Assignment = 'Assignment',
   Operator = 'Operator',
@@ -32,6 +33,7 @@ type Statement =
   | ContinueStatement
   | Block
   | SimpleStatement
+  | GoStatement
   | EmptyStatement
 
 type SimpleStatement = ExpressionStatement | Assignment | Declaration
@@ -88,6 +90,11 @@ export interface IfStatement extends Node {
   cond: Expression
   cons: Block
   alt: IfStatement | Block | null
+}
+
+export interface GoStatement extends Node {
+  type: NodeType.GoStatement
+  call: Expression
 }
 
 type ForForm = ForCondition | ForClause
@@ -316,6 +323,7 @@ export type Instruction =
   | ReturnStatement
   | IfStatement
   | ForStatement
+  | GoStatement
   | BreakStatement
   | ContinueStatement
   | EmptyStatement
