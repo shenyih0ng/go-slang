@@ -102,6 +102,7 @@ Literal
  
 BasicLit
     = IntegerLit
+    / StringLit
 
 IntegerLit "integer"
     = HexInt 
@@ -141,6 +142,11 @@ OctalDigit
  
 HexDigit
     = "_"? [a-fA-F0-9]
+
+StringLit
+    = "\"" chars: (UnicodeLetter / UnicodeDigit)* "\"" {
+        return makeNode({ type: "Literal", value: chars.join("") })
+      }
  
 UnaryExpression
     = CallExpression 
