@@ -75,7 +75,7 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
   // inject predeclared functions into the global environment
   const B = new Map<number, (...args: any[]) => any>()
   PREDECLARED_FUNCTIONS.forEach(({ name, func, op }, id) => {
-    E.declare(name, { ...op, id })
+    E.declare(name, { ...op, id } as BuiltinOp)
     if (name === 'println') {
       // println is special case where we need to the `rawDisplay` slang builtin for
       // console capture, therefore we handle it differently from other predeclared functions
