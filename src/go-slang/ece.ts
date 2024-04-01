@@ -10,7 +10,6 @@ import { Heap, HeapAddress } from './lib/heap'
 import { PREDECLARED_FUNCTIONS, PREDECLARED_IDENTIFIERS } from './lib/predeclared'
 import { zip, isAny } from './lib/utils'
 import {
-  ApplyBuiltinOp,
   AssignOp,
   Assignment,
   BinaryExpression,
@@ -235,12 +234,13 @@ const interpreter: {
     S.push(H.alloc(evaluateBinaryOp(A.get<Operator>(opNodeId).op, left, right)))
   },
 
-  CallOp: ({ calleeNodeId, arity }: CallOp, { C, S, E, H, A }) => {
+  CallOp: ({ calleeNodeId, arity }: CallOp, { C, S, E, B, H, A }) => {
     const values = H.resolveM(S.popNR(arity))
     const op = H.resolve(S.pop()) as ClosureOp | BuiltinOp
 
+    // handle BuiltinOp
     if (op.type === CommandType.BuiltinOp) {
-      return C.pushR(H.alloc({ type: CommandType.ApplyBuiltinOp, builtinOp: op, values }))
+      return S.push(H.alloc(B.get(op.id)!(...values)))
     }
 
     // handle ClosureOp
@@ -260,9 +260,6 @@ const interpreter: {
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>
     void (H.resolve(S.pop()) ? C.pushR(H.alloc(cons)) : alt && C.pushR(H.alloc(alt))),
-
-  ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { S, B, H }) =>
-    void S.push(H.alloc(B.get(id)!(...values))),
 
   EnvOp: ({ envId }: EnvOp, { E }) => void E.setId(envId),
 

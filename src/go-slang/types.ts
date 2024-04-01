@@ -209,8 +209,7 @@ export enum CommandType {
   EnvOp = 'EnvOp',
   PopSOp = 'PopSOp',
   PopTillMOp = 'PopTillMOp',
-  BuiltinOp = 'BuiltinOp',
-  ApplyBuiltinOp = 'ApplyBuiltinOp'
+  BuiltinOp = 'BuiltinOp'
 }
 
 export interface Command {
@@ -288,12 +287,6 @@ export interface BuiltinOp extends Command {
   arity?: number
 }
 
-export interface ApplyBuiltinOp extends Command {
-  type: CommandType.ApplyBuiltinOp
-  builtinOp: BuiltinOp
-  values: any[]
-}
-
 export enum MarkerType {
   RetMarker = 'RetMarker',
   ForStartMarker = 'ForStartMarker',
@@ -338,5 +331,4 @@ export type Instruction =
   | PopSOp
   | PopTillMOp
   | BuiltinOp
-  | ApplyBuiltinOp
   | Marker
