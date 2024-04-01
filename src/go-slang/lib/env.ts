@@ -68,4 +68,11 @@ export class Environment {
     this.currFrame = this.newFrame(bindings, this.currFrame)
     return this
   }
+
+  public copy(): Environment {
+    const newEnv = new Environment()
+    newEnv.frameMap = this.frameMap
+    newEnv.frameIdCounter = this.frameIdCounter
+    return newEnv
+  }
 }

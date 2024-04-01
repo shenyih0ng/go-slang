@@ -1,7 +1,12 @@
 import { zip } from 'lodash'
 import { Stack } from '../cse-machine/utils'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
-import { FuncArityError, UndefinedError, UnknownInstructionError } from './error'
+import {
+  FuncArityError,
+  GoExprMustBeFunctionError,
+  UndefinedError,
+  UnknownInstructionError
+} from './error'
 import { AstMap } from './lib/astMap'
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment } from './lib/env'
@@ -28,6 +33,8 @@ import {
   ForStartMarker,
   ForStatement,
   FunctionDeclaration,
+  GoRoutineOp,
+  GoStatement,
   Identifier,
   IfStatement,
   Instruction,
@@ -168,6 +175,19 @@ const Interpreter: {
     C.pushR(...H.allocM(right), ...H.allocM(asgmts.reverse()))
   },
 
+  GoStatement: ({ call }: GoStatement, { C, H, A }) => {
+    if (call.type !== NodeType.CallExpression) {
+      return new GoExprMustBeFunctionError(call.type)
+    }
+
+    const { callee, args } = call as CallExpression
+    return C.pushR(...H.allocM([callee, ...args]), {
+      type: CommandType.GoRoutineOp,
+      calleeNodeId: A.track(callee).uid as number,
+      arity: args.length
+    })
+  },
+
   EmptyStatement: () => void {},
 
   Literal: (inst: Literal, { S, H }) => S.push(H.alloc(inst.value)),
@@ -237,6 +257,31 @@ const Interpreter: {
     C.pushR(...H.allocM([body, RetMarker, { type: CommandType.EnvOp, envId: E.id() }]))
     // set the environment to the closure's environment
     E.setId(envId).extend(Object.fromEntries(zip(paramNames, values)))
+  },
+
+  // TODO: should we combine it with CallOp? there is a couple of duplicated logic
+  GoRoutineOp: ({ calleeNodeId, arity }: GoRoutineOp, { S, E, B, H, A }, sched) => {
+    const values = H.resolveM(S.popNR(arity))
+    // NOTE: for now we assume it will always be a closure
+    const op = H.resolve(S.pop()) as ClosureOp
+
+    const { funcDeclNodeUid, envId } = op
+    const { params, body } = A.get<FunctionDeclaration>(funcDeclNodeUid)
+    const paramNames = params.map(({ name }) => name)
+
+    if (paramNames.length !== values.length) {
+      const calleeId = A.get<Identifier>(calleeNodeId)
+      return new FuncArityError(calleeId.name, values.length, params.length)
+    }
+
+    const _C: Control = new Stack()
+    _C.push(H.alloc(body))
+    const _S: Stash = new Stack()
+    const _E = E.copy()
+      .setId(envId)
+      .extend(Object.fromEntries(zip(paramNames, values)))
+
+    return sched.schedule(new GoRoutine({ C: _C, S: _S, E: _E, B, H, A }, sched))
   },
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>

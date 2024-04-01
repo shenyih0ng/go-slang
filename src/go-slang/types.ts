@@ -212,6 +212,7 @@ export enum CommandType {
   BinaryOp = 'BinaryOp',
   ClosureOp = 'ClosureOp',
   CallOp = 'CallOp',
+  GoRoutineOp = 'GoRoutineOp',
   BranchOp = 'BranchOp',
   EnvOp = 'EnvOp',
   PopSOp = 'PopSOp',
@@ -256,6 +257,12 @@ export interface ClosureOp extends Command {
 
 export interface CallOp extends Command {
   type: CommandType.CallOp
+  arity: number
+  calleeNodeId: number
+}
+
+export interface GoRoutineOp extends Command {
+  type: CommandType.GoRoutineOp
   arity: number
   calleeNodeId: number
 }
@@ -334,6 +341,7 @@ export type Instruction =
   | BinaryOp
   | ClosureOp
   | CallOp
+  | GoRoutineOp
   | BranchOp
   | EnvOp
   | PopSOp
