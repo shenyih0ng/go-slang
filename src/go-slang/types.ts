@@ -11,6 +11,7 @@ export enum NodeType {
   ExpressionStatement = 'ExpressionStatement',
   EmptyStatement = 'EmptyStatement',
   Assignment = 'Assignment',
+  Operator = 'Operator',
   UnaryExpression = 'UnaryExpression',
   BinaryExpression = 'BinaryExpression',
   Identifier = 'Identifier',
@@ -52,6 +53,10 @@ export interface Node {
   type: NodeType
   uid?: number
   loc?: NodeLocation
+}
+
+export function isNode(v: any): boolean {
+  return v && v.type && NodeType[v.type]
 }
 
 export interface SourceFile extends Node {
@@ -154,12 +159,6 @@ export const True: Literal = { type: NodeType.Literal, value: true }
 
 export type UnaryOperator = '+' | '-'
 
-export interface UnaryExpression extends Node {
-  type: NodeType.UnaryExpression
-  operator: UnaryOperator
-  argument: Expression
-}
-
 export type BinaryOperator =
   | '+'
   | '-'
@@ -175,9 +174,20 @@ export type BinaryOperator =
   | '>'
   | '>='
 
+export interface Operator extends Node {
+  type: NodeType.Operator
+  op: UnaryOperator | BinaryOperator
+}
+
+export interface UnaryExpression extends Node {
+  type: NodeType.UnaryExpression
+  operator: Operator
+  argument: Expression
+}
+
 export interface BinaryExpression extends Node {
   type: NodeType.BinaryExpression
-  operator: BinaryOperator
+  operator: Operator
   left: Expression
   right: Expression
 }
@@ -199,8 +209,7 @@ export enum CommandType {
   EnvOp = 'EnvOp',
   PopSOp = 'PopSOp',
   PopTillMOp = 'PopTillMOp',
-  BuiltinOp = 'BuiltinOp',
-  ApplyBuiltinOp = 'ApplyBuiltinOp'
+  BuiltinOp = 'BuiltinOp'
 }
 
 export interface Command {
@@ -214,22 +223,22 @@ export function isCommand(v: any): boolean {
 export interface VarDeclOp extends Command {
   type: CommandType.VarDeclOp
   zeroValue: boolean
-  name: string
+  idNodeUid: number
 }
 
 export interface AssignOp extends Command {
   type: CommandType.AssignOp
-  name: string
+  idNodeUid: number
 }
 
 export interface UnaryOp extends Command {
   type: CommandType.UnaryOp
-  operator: UnaryOperator
+  opNodeId: number
 }
 
 export interface BinaryOp extends Command {
   type: CommandType.BinaryOp
-  operator: BinaryOperator
+  opNodeId: number
 }
 
 export interface ClosureOp extends Command {
@@ -241,7 +250,7 @@ export interface ClosureOp extends Command {
 export interface CallOp extends Command {
   type: CommandType.CallOp
   arity: number
-  calleeName: string
+  calleeNodeId: number
 }
 
 export interface BranchOp extends Command {
@@ -276,12 +285,6 @@ export interface BuiltinOp extends Command {
   type: CommandType.BuiltinOp
   id: number
   arity?: number
-}
-
-export interface ApplyBuiltinOp extends Command {
-  type: CommandType.ApplyBuiltinOp
-  builtinOp: BuiltinOp
-  values: any[]
 }
 
 export enum MarkerType {
@@ -328,5 +331,4 @@ export type Instruction =
   | PopSOp
   | PopTillMOp
   | BuiltinOp
-  | ApplyBuiltinOp
   | Marker

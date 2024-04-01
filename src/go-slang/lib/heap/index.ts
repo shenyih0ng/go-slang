@@ -1,4 +1,19 @@
-import { BuiltinOp, ClosureOp, CommandType, isCommand } from '../../types'
+import {
+  AssignOp,
+  BinaryOp,
+  BuiltinOp,
+  CallOp,
+  ClosureOp,
+  CommandType,
+  EnvOp,
+  Node,
+  PopS,
+  UnaryOp,
+  VarDeclOp,
+  isCommand,
+  isNode
+} from '../../types'
+import { AstMap } from '../astMap'
 import { DEFAULT_HEAP_SIZE, WORD_SIZE } from './config'
 import { PointerTag } from './tags'
 
@@ -8,7 +23,11 @@ export class Heap {
   private memory: DataView
   private free: number = 0 // n_words to the next free block
 
-  constructor(n_words?: number) {
+  // we need to keep track of the AstMap to be able to resolve AST nodes stored in the heap
+  private astMap: AstMap
+
+  constructor(astMap: AstMap, n_words?: number) {
+    this.astMap = astMap
     this.memory = new DataView(new ArrayBuffer((n_words ?? DEFAULT_HEAP_SIZE) * WORD_SIZE))
 
     // Allocate special values in the heap to avoid re-allocating them
@@ -36,17 +55,40 @@ export class Heap {
       return this.allocateNumber(value)
     }
 
+    // AST nodes
+    if (isNode(value)) {
+      // we need to track the AST node to be able to resolve it later
+      return this.allocateAstNode(this.astMap.track(value))
+    }
+
     // ECE operations
     if (isCommand(value)) {
       switch (value.type) {
+        case CommandType.VarDeclOp:
+          return this.allocateVarDeclOp(value)
+        case CommandType.AssignOp:
+          return this.allocateAssignOp(value)
+        case CommandType.UnaryOp:
+        case CommandType.BinaryOp:
+          return this.allocateUnaryBinaryOp(value)
+        case CommandType.CallOp:
+          return this.allocateCallOp(value)
         case CommandType.BuiltinOp:
           return this.allocateBuiltinOp(value)
         case CommandType.ClosureOp:
           return this.allocateClosureOp(value)
+        case CommandType.EnvOp:
+          return this.allocateEnvOp(value)
+        case CommandType.PopSOp:
+          return this.allocateTaggedPtr(PointerTag.PopSOp)
       }
     }
 
     return value
+  }
+
+  public allocM(values: any[]): HeapAddress[] {
+    return values.map(this.alloc.bind(this))
   }
 
   /**
@@ -69,6 +111,35 @@ export class Heap {
         return true
       case PointerTag.Number:
         return this.get(heap_addr + 1)
+      case PointerTag.AstNode:
+        return this.astMap.get(this.memory.getInt16(mem_addr + 1))
+      case PointerTag.VarDeclOp:
+        return {
+          type: CommandType.VarDeclOp,
+          idNodeUid: this.memory.getInt16(mem_addr + 1),
+          zeroValue: this.memory.getInt8(mem_addr + 7) === 1
+        } as VarDeclOp
+      case PointerTag.AssignOp:
+        return {
+          type: CommandType.AssignOp,
+          idNodeUid: this.memory.getInt16(mem_addr + 1)
+        } as AssignOp
+      case PointerTag.UnaryOp:
+        return {
+          type: CommandType.UnaryOp,
+          opNodeId: this.memory.getInt16(mem_addr + 1)
+        } as UnaryOp
+      case PointerTag.BinaryOp:
+        return {
+          type: CommandType.BinaryOp,
+          opNodeId: this.memory.getInt16(mem_addr + 1)
+        } as BinaryOp
+      case PointerTag.CallOp:
+        return {
+          type: CommandType.CallOp,
+          calleeNodeId: this.memory.getInt16(mem_addr + 1),
+          arity: this.memory.getInt16(mem_addr + 3)
+        } as CallOp
       case PointerTag.BuiltInOp:
         return {
           type: CommandType.BuiltinOp,
@@ -81,7 +152,18 @@ export class Heap {
           funcDeclNodeUid: this.memory.getInt16(mem_addr + 1),
           envId: this.memory.getInt16(mem_addr + 3)
         } as ClosureOp
+      case PointerTag.EnvOp:
+        return {
+          type: CommandType.EnvOp,
+          envId: this.memory.getInt16(mem_addr + 1)
+        } as EnvOp
+      case PointerTag.PopSOp:
+        return PopS
     }
+  }
+
+  public resolveM(heap_addrs: any[]): any[] {
+    return heap_addrs.map(this.resolve.bind(this))
   }
 
   private allocateBoolean(value: boolean): HeapAddress {
@@ -95,6 +177,62 @@ export class Heap {
 
     const data_heap_addr = ptr_heap_addr + 1
     this.set(data_heap_addr, value)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of an AST Node: [0:tag, 1-2:astId, 3-4:_unused_, 5-6:size, 7:_unused_] (1 word) */
+  private allocateAstNode({ uid }: Node): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.AstNode)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    this.memory.setInt16(ptr_mem_addr + 1, uid as number)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of a Unary/Binary Op: [0:tag, 1-2:opNodeId, 3-4:_unused_, 5-6:size, 7:_unused_] (1 word) */
+  private allocateUnaryBinaryOp({ type, opNodeId }: UnaryOp | BinaryOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(
+      type === CommandType.UnaryOp ? PointerTag.UnaryOp : PointerTag.BinaryOp
+    )
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    this.memory.setInt16(ptr_mem_addr + 1, opNodeId)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of a VarDeclOp: [0:tag, 1-2:idNodeUid, 3-4:_unused_, 5-6:size, 7:isZeroValue] (1 word) */
+  private allocateVarDeclOp({ zeroValue, idNodeUid }: VarDeclOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.VarDeclOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    this.memory.setInt16(ptr_mem_addr + 1, idNodeUid)
+    this.memory.setInt8(ptr_mem_addr + 7, zeroValue ? 1 : 0)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of an AssignOp: [0:tag, 1-2:idNodeUid, 3-4:_unused_, 5-6:size, 7:_unused_] (1 word) */
+  private allocateAssignOp({ idNodeUid }: AssignOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.AssignOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    this.memory.setInt16(ptr_mem_addr + 1, idNodeUid)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of a CallOp: [0:tag, 1-2:calleeNodeId, 3-4:arity, 5-6:size, 7:_unused_] (1 word) */
+  private allocateCallOp({ calleeNodeId, arity }: CallOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.CallOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    // NOTE: assume there will be no more than 2^16 AST nodes
+    this.memory.setInt16(ptr_mem_addr + 1, calleeNodeId)
+    // NOTE: assume there will be no more than 2^16 arguments
+    this.memory.setInt16(ptr_mem_addr + 3, arity)
 
     return ptr_heap_addr
   }
@@ -121,6 +259,17 @@ export class Heap {
     this.memory.setInt16(ptr_mem_addr + 1, funcDeclNodeUid)
     // NOTE: assume there will be no more than 2^16 envs
     this.memory.setInt16(ptr_mem_addr + 3, envId)
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of an EnvOp: [0:tag, 1-2:envId, 3-4:_unused_, 5-6:size, 7:_unused_] (1 word) */
+  private allocateEnvOp({ envId }: EnvOp): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.EnvOp)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    // NOTE: assume there will be no more than 2^16 envs
+    this.memory.setInt16(ptr_mem_addr + 1, envId)
 
     return ptr_heap_addr
   }

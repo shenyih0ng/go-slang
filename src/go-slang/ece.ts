@@ -3,13 +3,13 @@ import { Stack } from '../cse-machine/utils'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import { Value } from '../types'
 import { FuncArityError, UndefinedError, UnknownInstructionError } from './error'
+import { AstMap } from './lib/astMap'
 import { evaluateBinaryOp } from './lib/binaryOp'
-import { Environment, createGlobalEnvironment } from './lib/env'
+import { Environment } from './lib/env'
 import { Heap, HeapAddress } from './lib/heap'
-import { PREDECLARED_FUNCTIONS } from './lib/predeclared'
+import { PREDECLARED_FUNCTIONS, PREDECLARED_IDENTIFIERS } from './lib/predeclared'
 import { zip, isAny } from './lib/utils'
 import {
-  ApplyBuiltinOp,
   AssignOp,
   Assignment,
   BinaryExpression,
@@ -34,8 +34,8 @@ import {
   IfStatement,
   Instruction,
   Literal,
-  Node,
   NodeType,
+  Operator,
   PopS,
   PopTillM,
   PopTillMOp,
@@ -49,10 +49,9 @@ import {
   VariableDeclaration
 } from './types'
 
-type Control = Stack<Instruction>
+type Control = Stack<Instruction | HeapAddress>
 type Stash = Stack<HeapAddress>
 type Builtins = Map<number, (...args: any[]) => any>
-type AstMap = Map<number, Node>
 
 interface Context {
   C: Control
@@ -63,23 +62,20 @@ interface Context {
   A: AstMap
 }
 
-const CALL_MAIN: CallExpression = {
-  type: NodeType.CallExpression,
-  callee: { type: NodeType.Identifier, name: 'main' },
-  args: []
-}
-
 export function evaluate(program: SourceFile, slangContext: SlangContext): Value {
-  const C = new Stack<Instruction>()
+  const C = new Stack<Instruction | HeapAddress>()
   const S = new Stack<any>()
-  const E = createGlobalEnvironment()
-  const H = new Heap()
-  const A = new Map<number, Node>()
+  const E = new Environment({ ...PREDECLARED_IDENTIFIERS })
+
+  // `SourceFile` is the root node of the AST which has latest (monotonically increasing) uid of all AST nodes
+  // Therefore, the next uid to be used to track AST nodes is the uid of SourceFile + 1
+  const A = new AstMap((program.uid as number) + 1)
+  const H = new Heap(A)
 
   // inject predeclared functions into the global environment
   const B = new Map<number, (...args: any[]) => any>()
   PREDECLARED_FUNCTIONS.forEach(({ name, func, op }, id) => {
-    E.declare(name, { ...op, id })
+    E.declare(name, { ...op, id } as BuiltinOp)
     if (name === 'println') {
       // println is special case where we need to the `rawDisplay` slang builtin for
       // console capture, therefore we handle it differently from other predeclared functions
@@ -93,10 +89,15 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
   const Context = { C, S, E, B, H, A }
 
   // start the program by calling `main`
-  C.pushR(program, CALL_MAIN)
+  const CALL_MAIN: CallExpression = {
+    type: NodeType.CallExpression,
+    callee: { type: NodeType.Identifier, name: 'main' },
+    args: []
+  }
+  C.pushR(H.alloc(program), H.alloc(CALL_MAIN))
 
   while (!C.isEmpty()) {
-    const inst = C.pop() as Instruction
+    const inst = H.resolve(C.pop()) as Instruction
 
     if (!interpreter.hasOwnProperty(inst.type)) {
       slangContext.errors.push(new UnknownInstructionError(inst.type))
@@ -116,7 +117,7 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
 const interpreter: {
   [key: string]: (inst: Instruction, context: Context) => RuntimeSourceError | void
 } = {
-  SourceFile: ({ topLevelDecls }: SourceFile, { C }) => C.pushR(...topLevelDecls),
+  SourceFile: ({ topLevelDecls }: SourceFile, { C, H }) => C.pushR(...H.allocM(topLevelDecls)),
 
   FunctionDeclaration: (funcDeclNode: FunctionDeclaration, { E, A }) => {
     const { id, uid: funcDeclNodeUid } = funcDeclNode
@@ -124,24 +125,32 @@ const interpreter: {
     E.declare(id.name, { type: CommandType.ClosureOp, funcDeclNodeUid, envId: E.id() } as ClosureOp)
   },
 
-  Block: ({ statements }: Block, { C, E }) => {
-    C.pushR(...statements, { type: CommandType.EnvOp, envId: E.id() })
+  Block: ({ statements }: Block, { C, E, H }) => {
+    C.pushR(...H.allocM([...statements, { type: CommandType.EnvOp, envId: E.id() }]))
     E.extend({})
   },
 
-  ReturnStatement: ({ expression }: ReturnStatement, { C }) =>
-    C.pushR(expression, PopTillM(RetMarker)),
+  ReturnStatement: ({ expression }: ReturnStatement, { C, H }) =>
+    C.pushR(H.alloc(expression), H.alloc(PopTillM(RetMarker))),
 
-  IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C }) => {
+  IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C, H }) => {
     const branchOp: BranchOp = { type: CommandType.BranchOp, cons, alt }
-    stmt ? C.pushR(stmt, cond, branchOp) : C.pushR(cond, branchOp)
+    stmt ? C.pushR(...H.allocM([stmt, cond, branchOp])) : C.pushR(...H.allocM([cond, branchOp]))
   },
 
-  ForStatement: (inst: ForStatement, { C }) => {
+  ForStatement: (inst: ForStatement, { C, H }) => {
     const { form, block: forBlock } = inst
     if (form === null || form.type === ForFormType.ForCondition) {
       const branch = { type: CommandType.BranchOp, cons: forBlock, alt: PopTillM(ForEndMarker) }
-      C.pushR(form ? form.expression : True, branch as BranchOp, ForStartMarker, inst, ForEndMarker)
+      C.pushR(
+        ...H.allocM([
+          form ? form.expression : True,
+          branch as BranchOp,
+          ForStartMarker,
+          inst,
+          ForEndMarker
+        ])
+      )
     } else if (form.type === ForFormType.ForClause) {
       const { init, cond, post } = form
       const forCond = {
@@ -155,27 +164,27 @@ const interpreter: {
           ]
         }
       } as ForStatement
-      C.push({ type: NodeType.Block, statements: [init ?? EmptyStmt, forCond] })
+      C.push(H.alloc({ type: NodeType.Block, statements: [init ?? EmptyStmt, forCond] }))
     }
   },
 
-  BreakStatement: (_inst, { C }) => C.push(PopTillM(ForEndMarker)),
+  BreakStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForEndMarker))),
 
-  ContinueStatement: (_inst, { C }) => C.push(PopTillM(ForPostMarker, ForStartMarker)),
+  ContinueStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForPostMarker, ForStartMarker))),
 
-  VariableDeclaration: ({ left, right }: VariableDeclaration, { C }) => {
-    const decls = left.map(({ name }) => ({ type: CommandType.VarDeclOp, name })) as Instruction[]
+  VariableDeclaration: ({ left, right }: VariableDeclaration, { C, H, A }) => {
+    const decls = A.trackM(left).map(({ uid }) => ({ type: CommandType.VarDeclOp, idNodeUid: uid }))
     return right.length === 0
       ? // if there is no right side, we push zero value for each declaration
-        C.pushR(...decls.map(decl => ({ ...decl, zeroValue: true })))
+        C.pushR(...H.allocM(decls.map(decl => ({ ...decl, zeroValue: true }))))
       : // assume: left.length === right.length
-        C.pushR(...right, ...decls.reverse())
+        C.pushR(...H.allocM(right), ...H.allocM(decls.reverse()))
   },
 
-  Assignment: ({ left, right }: Assignment, { C }) => {
+  Assignment: ({ left, right }: Assignment, { C, H, A }) => {
     const ids = left as Identifier[] // assume: left is always an array of identifiers
-    const asgmts = ids.map(({ name }) => ({ type: CommandType.AssignOp, name })) as Instruction[]
-    C.pushR(...right, ...asgmts.reverse())
+    const asgmts = ids.map(id => ({ type: CommandType.AssignOp, idNodeUid: A.track(id).uid }))
+    C.pushR(...H.allocM(right), ...H.allocM(asgmts.reverse()))
   },
 
   EmptyStatement: () => void {},
@@ -187,64 +196,70 @@ const interpreter: {
     return value === null ? new UndefinedError(name) : S.push(H.alloc(value))
   },
 
-  UnaryExpression: ({ argument, operator }: UnaryExpression, { C }) =>
-    C.pushR(argument, { type: CommandType.UnaryOp, operator }),
+  UnaryExpression: ({ argument, operator: op }: UnaryExpression, { C, H, A }) =>
+    C.pushR(...H.allocM([argument, { type: CommandType.UnaryOp, opNodeId: A.track(op).uid }])),
 
-  BinaryExpression: ({ left, right, operator }: BinaryExpression, { C }) =>
-    C.pushR(left, right, { type: CommandType.BinaryOp, operator: operator }),
+  BinaryExpression: ({ left, right, operator: op }: BinaryExpression, { C, H, A }) =>
+    C.pushR(...H.allocM([left, right, { type: CommandType.BinaryOp, opNodeId: A.track(op).uid }])),
 
-  CallExpression: ({ callee, args }: CallExpression, { C }) =>
-    C.pushR(callee, ...args, {
-      type: CommandType.CallOp,
-      calleeName: callee.name,
-      arity: args.length
-    }),
+  CallExpression: ({ callee, args }: CallExpression, { C, H, A }) =>
+    C.pushR(
+      ...H.allocM([
+        callee,
+        ...args,
+        { type: CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }
+      ])
+    ),
 
-  ExpressionStatement: ({ expression }: ExpressionStatement, { C }) => C.pushR(expression, PopS),
+  ExpressionStatement: ({ expression }: ExpressionStatement, { C, H }) =>
+    C.pushR(...H.allocM([expression, PopS])),
 
-  VarDeclOp: ({ name, zeroValue }: VarDeclOp, { S, E, H }) =>
-    zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop())),
+  VarDeclOp: ({ idNodeUid, zeroValue }: VarDeclOp, { S, E, H, A }) => {
+    const name = A.get<Identifier>(idNodeUid).name
+    zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop()))
+  },
 
-  AssignOp: ({ name }: AssignOp, { S, E, H }) =>
-    !E.assign(name, H.resolve(S.pop())) ? new UndefinedError(name) : void {},
+  AssignOp: ({ idNodeUid }: AssignOp, { S, E, H, A }) => {
+    const name = A.get<Identifier>(idNodeUid).name
+    !E.assign(name, H.resolve(S.pop())) ? new UndefinedError(name) : void {}
+  },
 
-  UnaryOp: ({ operator }: UnaryOp, { S, H }) => {
+  UnaryOp: ({ opNodeId }: UnaryOp, { S, H, A }) => {
     const operand = H.resolve(S.pop())
-    S.push(H.alloc(operator === '-' ? -operand : operand))
+    S.push(H.alloc(A.get<Operator>(opNodeId).op === '-' ? -operand : operand))
   },
 
-  BinaryOp: ({ operator }: BinaryOp, { S, H }) => {
-    const [left, right] = S.popNR(2).map(H.resolve.bind(H))
-    S.push(H.alloc(evaluateBinaryOp(operator, left, right)))
+  BinaryOp: ({ opNodeId }: BinaryOp, { S, H, A }) => {
+    const [left, right] = H.resolveM(S.popNR(2))
+    S.push(H.alloc(evaluateBinaryOp(A.get<Operator>(opNodeId).op, left, right)))
   },
 
-  CallOp: ({ calleeName, arity }: CallOp, { C, S, E, H, A }) => {
-    const values = S.popNR(arity).map(H.resolve.bind(H))
+  CallOp: ({ calleeNodeId, arity }: CallOp, { C, S, E, B, H, A }) => {
+    const values = H.resolveM(S.popNR(arity))
     const op = H.resolve(S.pop()) as ClosureOp | BuiltinOp
 
+    // handle BuiltinOp
     if (op.type === CommandType.BuiltinOp) {
-      return C.pushR({ type: CommandType.ApplyBuiltinOp, builtinOp: op, values })
+      return S.push(H.alloc(B.get(op.id)!(...values)))
     }
 
     // handle ClosureOp
     const { funcDeclNodeUid, envId } = op
-    const { params, body } = A.get(funcDeclNodeUid) as FunctionDeclaration
+    const { params, body } = A.get<FunctionDeclaration>(funcDeclNodeUid)
     const paramNames = params.map(({ name }) => name)
 
     if (paramNames.length !== values.length) {
-      return new FuncArityError(calleeName, values.length, params.length)
+      const calleeId = A.get<Identifier>(calleeNodeId)
+      return new FuncArityError(calleeId.name, values.length, params.length)
     }
 
-    C.pushR(body, RetMarker, { type: CommandType.EnvOp, envId: E.id() })
+    C.pushR(...H.allocM([body, RetMarker, { type: CommandType.EnvOp, envId: E.id() }]))
     // set the environment to the closure's environment
     E.setId(envId).extend(Object.fromEntries(zip(paramNames, values)))
   },
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>
-    void (H.resolve(S.pop()) ? C.pushR(cons) : alt && C.pushR(alt)),
-
-  ApplyBuiltinOp: ({ builtinOp: { id }, values }: ApplyBuiltinOp, { S, B, H }) =>
-    void S.push(H.alloc(B.get(id)!(...values))),
+    void (H.resolve(S.pop()) ? C.pushR(H.alloc(cons)) : alt && C.pushR(H.alloc(alt))),
 
   EnvOp: ({ envId }: EnvOp, { E }) => void E.setId(envId),
 
