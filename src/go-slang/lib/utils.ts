@@ -42,3 +42,11 @@ export class Result<E extends SourceError> {
     return new Result(false, error)
   }
 }
+
+// prettier-ignore
+export class Counter {
+  private count = 0
+
+  constructor (start: number = 0) { this.count = start }
+  public next(): number { return this.count++ }
+}
