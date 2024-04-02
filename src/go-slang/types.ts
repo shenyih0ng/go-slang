@@ -9,6 +9,7 @@ export enum NodeType {
   BreakStatement = 'BreakStatement',
   ContinueStatement = 'ContinueStatement',
   ExpressionStatement = 'ExpressionStatement',
+  GoStatement = 'GoStatement',
   EmptyStatement = 'EmptyStatement',
   Assignment = 'Assignment',
   Operator = 'Operator',
@@ -32,6 +33,7 @@ type Statement =
   | ContinueStatement
   | Block
   | SimpleStatement
+  | GoStatement
   | EmptyStatement
 
 type SimpleStatement = ExpressionStatement | Assignment | Declaration
@@ -88,6 +90,11 @@ export interface IfStatement extends Node {
   cond: Expression
   cons: Block
   alt: IfStatement | Block | null
+}
+
+export interface GoStatement extends Node {
+  type: NodeType.GoStatement
+  call: Expression
 }
 
 type ForForm = ForCondition | ForClause
@@ -205,6 +212,7 @@ export enum CommandType {
   BinaryOp = 'BinaryOp',
   ClosureOp = 'ClosureOp',
   CallOp = 'CallOp',
+  GoRoutineOp = 'GoRoutineOp',
   BranchOp = 'BranchOp',
   EnvOp = 'EnvOp',
   PopSOp = 'PopSOp',
@@ -249,6 +257,12 @@ export interface ClosureOp extends Command {
 
 export interface CallOp extends Command {
   type: CommandType.CallOp
+  arity: number
+  calleeNodeId: number
+}
+
+export interface GoRoutineOp extends Command {
+  type: CommandType.GoRoutineOp
   arity: number
   calleeNodeId: number
 }
@@ -316,6 +330,7 @@ export type Instruction =
   | ReturnStatement
   | IfStatement
   | ForStatement
+  | GoStatement
   | BreakStatement
   | ContinueStatement
   | EmptyStatement
@@ -326,6 +341,7 @@ export type Instruction =
   | BinaryOp
   | ClosureOp
   | CallOp
+  | GoRoutineOp
   | BranchOp
   | EnvOp
   | PopSOp

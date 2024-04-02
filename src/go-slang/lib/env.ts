@@ -1,3 +1,5 @@
+import { Counter } from './utils'
+
 type Maybe<T> = T | null
 
 interface Frame {
@@ -7,17 +9,21 @@ interface Frame {
 }
 
 export class Environment {
-  private frameId = 0
   private frameMap = new Map<number, Frame>()
+  private frameIdCounter = new Counter(0)
 
   private currFrame: Frame
 
-  constructor(bindings: { [key: string]: any }) {
-    this.currFrame = this.newFrame(bindings)
+  constructor(bindings?: { [key: string]: any }) {
+    if (bindings) { this.currFrame = this.newFrame(bindings) } // prettier-ignore
   }
 
   private newFrame(bindings: { [key: string]: any }, parent: Frame | null = null): Frame {
-    const frame = { id: this.frameId++, bindings: new Map(Object.entries(bindings)), parent }
+    const frame = {
+      id: this.frameIdCounter.next(),
+      bindings: new Map(Object.entries(bindings)),
+      parent
+    }
     this.frameMap.set(frame.id, frame)
     return frame
   }
@@ -61,5 +67,12 @@ export class Environment {
   public extend(bindings: { [key: string]: any }): Environment {
     this.currFrame = this.newFrame(bindings, this.currFrame)
     return this
+  }
+
+  public copy(): Environment {
+    const newEnv = new Environment()
+    newEnv.frameMap = this.frameMap
+    newEnv.frameIdCounter = this.frameIdCounter
+    return newEnv
   }
 }

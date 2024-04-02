@@ -2,7 +2,7 @@
 
 // The default size of the heap in words
 // Total heap size (in bytes) = DEFAULT_HEAP_SIZE * WORD_SIZE
-export const DEFAULT_HEAP_SIZE = 1024 // in words
+export const DEFAULT_HEAP_SIZE = 4096 // in words
 
 // The smallest addressable unit in the heap
 // We can think of it as the heap containing N number of words, each of size WORD_SIZE

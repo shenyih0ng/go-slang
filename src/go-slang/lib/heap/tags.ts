@@ -8,6 +8,7 @@ export enum PointerTag {
   UnaryOp,
   BinaryOp,
   CallOp,
+  GoRoutineOp,
   BuiltInOp,
   ClosureOp,
   EnvOp,

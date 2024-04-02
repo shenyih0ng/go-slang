@@ -50,3 +50,16 @@ export class FuncArityError extends RuntimeSourceError {
     )
   }
 }
+
+export class GoExprMustBeFunctionError extends RuntimeSourceError {
+  private expr: string
+
+  constructor(expr: string) {
+    super()
+    this.expr = expr
+  }
+
+  public explain() {
+    return `expression in go statement must be function call, not ${this.expr}`
+  }
+}
