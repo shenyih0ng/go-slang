@@ -45,7 +45,7 @@ interface Position {
   column: number
   offset: number
 }
-interface NodeLocation {
+export interface NodeLocation {
   start: Position
   end: Position
   offset: number

@@ -175,9 +175,9 @@ const Interpreter: {
     C.pushR(...H.allocM(right), ...H.allocM(asgmts.reverse()))
   },
 
-  GoStatement: ({ call }: GoStatement, { C, H, A }) => {
+  GoStatement: ({ call, loc }: GoStatement, { C, H, A }) => {
     if (call.type !== NodeType.CallExpression) {
-      return new GoExprMustBeFunctionError(call.type)
+      return new GoExprMustBeFunctionError(call.type, loc!)
     }
 
     const { callee, args } = call as CallExpression
@@ -198,9 +198,9 @@ const Interpreter: {
 
   Literal: (inst: Literal, { S, H }) => S.push(H.alloc(inst.value)),
 
-  Identifier: ({ name }: Identifier, { S, E, H }) => {
+  Identifier: ({ name, loc }: Identifier, { S, E, H }) => {
     const value = E.lookup(name)
-    return value === null ? new UndefinedError(name) : S.push(H.alloc(value))
+    return value === null ? new UndefinedError(name, loc!) : S.push(H.alloc(value))
   },
 
   UnaryExpression: ({ argument, operator: op }: UnaryExpression, { C, H, A }) =>
@@ -227,8 +227,8 @@ const Interpreter: {
   },
 
   AssignOp: ({ idNodeUid }: AssignOp, { S, E, H, A }) => {
-    const name = A.get<Identifier>(idNodeUid).name
-    !E.assign(name, H.resolve(S.pop())) ? new UndefinedError(name) : void {}
+    const id = A.get<Identifier>(idNodeUid)
+    !E.assign(id.name, H.resolve(S.pop())) ? new UndefinedError(id.name, id.loc!) : void {}
   },
 
   UnaryOp: ({ opNodeId }: UnaryOp, { S, H, A }) => {
@@ -257,7 +257,7 @@ const Interpreter: {
 
     if (paramNames.length !== values.length) {
       const calleeId = A.get<Identifier>(calleeNodeId)
-      return new FuncArityError(calleeId.name, values.length, params.length)
+      return new FuncArityError(calleeId.name, values.length, params.length, calleeId.loc!)
     }
 
     C.pushR(...H.allocM([body, RetMarker, { type: CommandType.EnvOp, envId: E.id() }]))
@@ -277,7 +277,7 @@ const Interpreter: {
 
     if (paramNames.length !== values.length) {
       const calleeId = A.get<Identifier>(calleeNodeId)
-      return new FuncArityError(calleeId.name, values.length, params.length)
+      return new FuncArityError(calleeId.name, values.length, params.length, calleeId.loc!)
     }
 
     const _C: Control = new Stack()

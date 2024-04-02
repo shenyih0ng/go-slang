@@ -1,4 +1,5 @@
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
+import { NodeLocation } from './types'
 
 export class UnknownInstructionError extends RuntimeSourceError {
   private inst_type: string
@@ -20,9 +21,12 @@ export class UnknownInstructionError extends RuntimeSourceError {
 export class UndefinedError extends RuntimeSourceError {
   private identifier: string
 
-  constructor(identifier: string) {
+  public location: NodeLocation
+
+  constructor(identifier: string, location: NodeLocation) {
     super()
     this.identifier = identifier
+    this.location = location
   }
 
   public explain() {
@@ -35,11 +39,14 @@ export class FuncArityError extends RuntimeSourceError {
   private n_actual: number
   private n_expected: number
 
-  constructor(func_name: string, n_actual: number, n_expected: number) {
+  public location: NodeLocation
+
+  constructor(func_name: string, n_actual: number, n_expected: number, location: NodeLocation) {
     super()
     this.func_name = func_name
     this.n_actual = n_actual
     this.n_expected = n_expected
+    this.location = location
   }
 
   public explain() {
@@ -54,9 +61,12 @@ export class FuncArityError extends RuntimeSourceError {
 export class GoExprMustBeFunctionError extends RuntimeSourceError {
   private expr: string
 
-  constructor(expr: string) {
+  public location: NodeLocation
+
+  constructor(expr: string, location: NodeLocation) {
     super()
     this.expr = expr
+    this.location = location
   }
 
   public explain() {
