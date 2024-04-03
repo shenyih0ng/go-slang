@@ -103,6 +103,7 @@ Literal
 BasicLit
     = IntegerLit
     / StringLit
+    / TypeLit
 
 IntegerLit "integer"
     = HexInt 
@@ -147,6 +148,12 @@ StringLit
     = "\"" chars: (UnicodeLetter / UnicodeDigit)* "\"" {
         return makeNode({ type: "Literal", value: chars.join("") })
       }
+
+TypeLit
+    = ChannelType { return makeNode({ type: "TypeLiteral", value: text() }) }
+
+ChannelType 
+    = CHAN_TOKEN
  
 UnaryExpression
     = CallExpression 
