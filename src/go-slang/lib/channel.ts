@@ -8,11 +8,8 @@ export class Channel {
   public send(value: any): boolean {
     if (this.isBufferFull()) { return false } // prettier-ignore
 
-    // write value to free slot
-    this.mem.setFloat64(this.getSlotAddr(this.getFreeSlotIdx()), value)
-    // increment free slot offset
-    this.setFreeSlotIdx(this.getFreeSlotIdx() + 1)
-
+    // write value to free slot and increment free slot offset
+    this.mem.setFloat64(this.getSlotAddr(this.freeSlotIdx++), value)
     return true
   }
 
@@ -22,37 +19,36 @@ export class Channel {
     // get value from first slot
     const value = this.getSlotValue(0)
     // shift all values to the left
-    for (let i = 1; i < this.getBufferSize(); i++) {
+    for (let i = 1; i < this.bufferSize; i++) {
       this.mem.setFloat64(this.getSlotAddr(i - 1), this.getSlotValue(i))
     }
     // decrement free slot offset
-    this.setFreeSlotIdx(this.getFreeSlotIdx() - 1)
-
+    this.freeSlotIdx--
     return value
   }
 
-  public getFreeSlotIdx(): number {
+  private get freeSlotIdx(): number {
     return this.mem.getUint16(3)
   }
 
-  private setFreeSlotIdx(offset: number): void {
+  private set freeSlotIdx(offset: number) {
     this.mem.setUint16(3, offset)
   }
 
-  public getMaxBufferSize(): number {
+  private get maxBufferSize(): number {
     return this.mem.getUint16(5)
   }
 
-  public getBufferSize(): number {
-    return this.getFreeSlotIdx()
+  private get bufferSize(): number {
+    return this.freeSlotIdx
   }
 
-  public isBufferFull(): boolean {
-    return this.getBufferSize() === this.getMaxBufferSize()
+  private isBufferFull(): boolean {
+    return this.bufferSize === this.maxBufferSize
   }
 
-  public isBufferEmpty(): boolean {
-    return this.getBufferSize() === 0
+  private isBufferEmpty(): boolean {
+    return this.bufferSize === 0
   }
 
   private getSlotAddr(slotIdx: number): number {
