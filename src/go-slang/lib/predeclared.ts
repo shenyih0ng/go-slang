@@ -51,6 +51,8 @@ function make(...args: any): Make | InvalidOperationError {
         `make(${Type.Channel}, ${args.join(', ')}) expects second argument to be a number; found ${args[1]}`
       )
     }
+    // NOTE: we support only buffered channels for now
+    // If there is no buffer size specified, default to 1
     const bufferSize = args.length === 2 ? args[1] : 1
     return { type: Type.Channel, size: bufferSize } as MakeChannel
   }
