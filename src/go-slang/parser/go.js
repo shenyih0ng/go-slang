@@ -382,7 +382,7 @@ function peg$parse(input, options) {
       };
   var peg$f10 = function() { return makeNode({ type: "TypeLiteral", value: text() }) };
   var peg$f11 = function(op, argument) {
-        return makeNode({type: "UnaryExpression", operator: makeOperator(op), argument})
+        return makeNode({ type: "UnaryExpression", operator: makeOperator(op), argument })
  	  };
   var peg$f12 = function(head, tail) { return buildBinaryExpression(head, tail); };
   var peg$f13 = function(head, tail) { return buildBinaryExpression(head, tail); };
@@ -1427,6 +1427,9 @@ function peg$parse(input, options) {
         s3 = peg$FAILED;
         if (peg$silentFails === 0) { peg$fail(peg$e20); }
       }
+      if (s3 === peg$FAILED) {
+        s3 = peg$parseWhitespace();
+      }
       while (s3 !== peg$FAILED) {
         s2.push(s3);
         s3 = input.charAt(peg$currPos);
@@ -1435,6 +1438,9 @@ function peg$parse(input, options) {
         } else {
           s3 = peg$FAILED;
           if (peg$silentFails === 0) { peg$fail(peg$e20); }
+        }
+        if (s3 === peg$FAILED) {
+          s3 = peg$parseWhitespace();
         }
       }
       if (input.charCodeAt(peg$currPos) === 34) {
@@ -2186,7 +2192,7 @@ function peg$parse(input, options) {
     s1 = peg$parseGO_TOKEN();
     if (s1 !== peg$FAILED) {
       s2 = peg$parse__();
-      s3 = peg$parseRelationalExpression();
+      s3 = peg$parseCallExpression();
       if (s3 !== peg$FAILED) {
         s4 = peg$parseEOS();
         peg$savedPos = s0;

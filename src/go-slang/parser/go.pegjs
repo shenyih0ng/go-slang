@@ -145,7 +145,7 @@ HexDigit
     = "_"? [a-fA-F0-9]
 
 StringLit
-    = "\"" chars: (UnicodeLetter / UnicodeDigit)* "\"" {
+    = "\"" chars: (UnicodeLetter / UnicodeDigit / Whitespace)* "\"" {
         return makeNode({ type: "Literal", value: chars.join("") })
       }
 
@@ -159,7 +159,7 @@ UnaryExpression
     = CallExpression 
     / PrimaryExpression
     / op:UnaryOperator argument:UnaryExpression {
-        return makeNode({type: "UnaryExpression", operator: makeOperator(op), argument})
+        return makeNode({ type: "UnaryExpression", operator: makeOperator(op), argument })
  	  }
  
 UnaryOperator
@@ -232,7 +232,7 @@ ReceiveExpression
 /* Go Statement */
 
 GoStatement
-    = GO_TOKEN __ call:Expression EOS {
+    = GO_TOKEN __ call:CallExpression EOS {
         return makeNode({ type: "GoStatement", call })
       }
 
