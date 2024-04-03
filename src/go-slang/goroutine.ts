@@ -54,10 +54,11 @@ import {
   VariableDeclaration
 } from './types'
 import { Scheduler } from './scheduler'
+import { PredeclaredFuncT } from './lib/predeclared'
 
 export type Control = Stack<Instruction | HeapAddress>
 export type Stash = Stack<HeapAddress>
-export type Builtins = Map<number, (...args: any[]) => any>
+export type Builtins = Map<number, PredeclaredFuncT>
 
 export interface Context {
   C: Control

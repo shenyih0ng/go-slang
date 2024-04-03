@@ -17,6 +17,7 @@ export enum NodeType {
   BinaryExpression = 'BinaryExpression',
   Identifier = 'Identifier',
   Literal = 'Literal',
+  TypeLiteral = 'TypeLiteral',
   CallExpression = 'CallExpression'
 }
 
@@ -163,6 +164,19 @@ export interface Literal extends Node {
 }
 
 export const True: Literal = { type: NodeType.Literal, value: true }
+
+export enum Type {
+  Channel = 'chan'
+}
+
+export interface TypeLiteral extends Node {
+  type: NodeType.TypeLiteral
+  value: Type
+}
+
+export function isTypeLiteral(v: any): v is TypeLiteral {
+  return v && v.type === NodeType.TypeLiteral
+}
 
 export type UnaryOperator = '+' | '-'
 
@@ -335,6 +349,7 @@ export type Instruction =
   | ContinueStatement
   | EmptyStatement
   | Expression
+  | TypeLiteral
   | VarDeclOp
   | AssignOp
   | UnaryOp
@@ -348,3 +363,16 @@ export type Instruction =
   | PopTillMOp
   | BuiltinOp
   | Marker
+
+export interface Make {
+  type: Type
+}
+
+export function isMake(v: any): boolean {
+  return v && v.type && Object.values(Type).includes(v.type)
+}
+
+export interface MakeChannel extends Make {
+  type: Type.Channel
+  size: number
+}
