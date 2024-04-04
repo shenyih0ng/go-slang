@@ -77,6 +77,21 @@ export class Stack<T> implements IStack<T> {
     return this.storage[this.size() - 1]
   }
 
+  /**
+   * Returns the top n items in the stack.
+   *
+   * @param n amount of items to peek from the top of the stack
+   * @returns an array of the top n items in the stack
+   *          the first item in the array is the top of the stack
+   */
+  public peekN(n: number): T[] | undefined {
+    if (this.isEmpty()) {
+      return undefined
+    }
+
+    return this.storage.slice(-n).reverse()
+  }
+
   public size(): number {
     return this.storage.length
   }
