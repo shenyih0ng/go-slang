@@ -309,26 +309,25 @@ const Interpreter: {
   },
 
   ChanRecvOp: (_inst, { C, S, H }) => {
-    const chanAddr = S.pop()
+    const chanAddr = S.peek()
     const chan = H.resolve(chanAddr) as BufferedChannel
 
-    const chanValue = chan.recv()
-    if (chanValue !== null) { return S.push(H.alloc(chanValue)) } // prettier-ignore
+    // if the channel is empty, we retry the receive operation
+    if (chan.isBufferEmpty()) { return C.push(ChanRecv) } // prettier-ignore
 
-    // retry receiving from the channel
-    S.push(chanAddr)
-    C.push(ChanRecv)
+    S.pop()
+    S.push(H.alloc(chan.recv()))
   },
 
   ChanSendOp: (_inst, { C, S, H }) => {
-    const addrs = S.popN(2)
-    const [channel, value] = H.resolveM(addrs) as [BufferedChannel, any]
+    const chanAddr = S.peek()
+    const chan = H.resolve(chanAddr) as BufferedChannel
 
-    if (channel.send(value)) { return } // prettier-ignore
+    // if the channel is full, we retry the send operation
+    if (chan.isBufferFull()) { return C.push(ChanSend) } // prettier-ignore
 
-    // retry sending to the channel
-    S.pushR(...addrs)
-    C.push(ChanSend)
+    const [_, valueAddr] = S.popN(2)
+    chan.send(H.resolve(valueAddr))
   },
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>

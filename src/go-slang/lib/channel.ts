@@ -42,6 +42,14 @@ export class BufferedChannel extends Channel {
     return value
   }
 
+  public isBufferFull(): boolean {
+    return this.bufSize === this.maxBufSize
+  }
+
+  public isBufferEmpty(): boolean {
+    return this.bufSize === 0
+  }
+
   private get readIdx(): number {
     return this.memory.getUint8(BufferedChannel.READ_IDX_OFFSET)
   }
@@ -64,13 +72,5 @@ export class BufferedChannel extends Channel {
 
   private set bufSize(newBufSize: number) {
     this.memory.setUint8(BufferedChannel.BUF_SIZE_OFFSET, newBufSize)
-  }
-
-  private isBufferFull(): boolean {
-    return this.bufSize === this.maxBufSize
-  }
-
-  private isBufferEmpty(): boolean {
-    return this.bufSize === 0
   }
 }
