@@ -10,6 +10,7 @@ export enum NodeType {
   ContinueStatement = 'ContinueStatement',
   ExpressionStatement = 'ExpressionStatement',
   GoStatement = 'GoStatement',
+  SendStatement = 'SendStatement',
   EmptyStatement = 'EmptyStatement',
   Assignment = 'Assignment',
   Operator = 'Operator',
@@ -17,6 +18,7 @@ export enum NodeType {
   BinaryExpression = 'BinaryExpression',
   Identifier = 'Identifier',
   Literal = 'Literal',
+  TypeLiteral = 'TypeLiteral',
   CallExpression = 'CallExpression'
 }
 
@@ -94,7 +96,13 @@ export interface IfStatement extends Node {
 
 export interface GoStatement extends Node {
   type: NodeType.GoStatement
-  call: Expression
+  call: CallExpression
+}
+
+export interface SendStatement extends Node {
+  type: NodeType.SendStatement
+  channel: Expression
+  value: Expression
 }
 
 type ForForm = ForCondition | ForClause
@@ -164,7 +172,20 @@ export interface Literal extends Node {
 
 export const True: Literal = { type: NodeType.Literal, value: true }
 
-export type UnaryOperator = '+' | '-'
+export enum Type {
+  Channel = 'chan'
+}
+
+export interface TypeLiteral extends Node {
+  type: NodeType.TypeLiteral
+  value: Type
+}
+
+export function isTypeLiteral(v: any): v is TypeLiteral {
+  return v && v.type === NodeType.TypeLiteral
+}
+
+export type UnaryOperator = '+' | '-' | '<-'
 
 export type BinaryOperator =
   | '+'
@@ -213,6 +234,8 @@ export enum CommandType {
   ClosureOp = 'ClosureOp',
   CallOp = 'CallOp',
   GoRoutineOp = 'GoRoutineOp',
+  ChanRecvOp = 'ChanRecvOp',
+  ChanSendOp = 'ChanSendOp',
   BranchOp = 'BranchOp',
   EnvOp = 'EnvOp',
   PopSOp = 'PopSOp',
@@ -266,6 +289,18 @@ export interface GoRoutineOp extends Command {
   arity: number
   calleeNodeId: number
 }
+
+export interface ChanRecvOp extends Command {
+  type: CommandType.ChanRecvOp
+}
+
+export const ChanRecv: Instruction = { type: CommandType.ChanRecvOp }
+
+export interface ChanSendOp extends Command {
+  type: CommandType.ChanSendOp
+}
+
+export const ChanSend: Instruction = { type: CommandType.ChanSendOp }
 
 export interface BranchOp extends Command {
   type: CommandType.BranchOp
@@ -331,10 +366,12 @@ export type Instruction =
   | IfStatement
   | ForStatement
   | GoStatement
+  | SendStatement
   | BreakStatement
   | ContinueStatement
   | EmptyStatement
   | Expression
+  | TypeLiteral
   | VarDeclOp
   | AssignOp
   | UnaryOp
@@ -342,9 +379,24 @@ export type Instruction =
   | ClosureOp
   | CallOp
   | GoRoutineOp
+  | ChanRecvOp
+  | ChanSendOp
   | BranchOp
   | EnvOp
   | PopSOp
   | PopTillMOp
   | BuiltinOp
   | Marker
+
+export interface Make {
+  type: Type
+}
+
+export function isMake(v: any): boolean {
+  return v && v.type && Object.values(Type).includes(v.type)
+}
+
+export interface MakeChannel extends Make {
+  type: Type.Channel
+  size: number
+}

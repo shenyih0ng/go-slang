@@ -7,14 +7,18 @@ import {
   CommandType,
   EnvOp,
   GoRoutineOp,
+  MakeChannel,
   Node,
   PopS,
+  Type,
   UnaryOp,
   VarDeclOp,
   isCommand,
+  isMake,
   isNode
 } from '../../types'
 import { AstMap } from '../astMap'
+import { BufferedChannel } from '../channel'
 import { DEFAULT_HEAP_SIZE, WORD_SIZE } from './config'
 import { PointerTag } from './tags'
 
@@ -83,6 +87,15 @@ export class Heap {
           return this.allocateEnvOp(value)
         case CommandType.PopSOp:
           return this.allocateTaggedPtr(PointerTag.PopSOp)
+      }
+    }
+
+    // Make operation
+    if (isMake(value)) {
+      switch (value.type) {
+        case Type.Channel:
+          const { size: bufSize } = value as MakeChannel
+          return bufSize === 0 ? this.allocateUnbufferedChan() : this.allocateBufferedChan(bufSize)
       }
     }
 
@@ -159,6 +172,15 @@ export class Heap {
         } as EnvOp
       case PointerTag.PopSOp:
         return PopS
+      case PointerTag.BufferedChannel:
+        const chanMaxBufSize = this.size(heap_addr)
+        const chanMemRegion = new DataView(
+          this.memory.buffer,
+          mem_addr,
+          // +1 to include the tagged pointer
+          WORD_SIZE * (chanMaxBufSize + 1)
+        )
+        return new BufferedChannel(chanMemRegion)
     }
   }
 
@@ -276,6 +298,24 @@ export class Heap {
     return ptr_heap_addr
   }
 
+  public allocateUnbufferedChan(): HeapAddress {
+    throw new Error('allocateUnbufferedChan not implemented.')
+  }
+
+  /* Memory Layout of an BufferedChannel:
+   * [0:tag, 1:readIdx, 2:writeIdx, 3:bufSize, 4:_unused_, 5-6:bufSize, 7:_unused_] (1 + `size` words)
+   */
+  public allocateBufferedChan(size: number): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.BufferedChannel, size)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    this.memory.setUint8(ptr_mem_addr + 1, 0) // initialize read index to 0
+    this.memory.setUint8(ptr_mem_addr + 2, 0) // initialize write index to 0
+    this.memory.setUint8(ptr_mem_addr + 3, 0) // initialize buffer size to 0
+
+    return ptr_heap_addr
+  }
+
   /**
    * Allocate a tagged pointer in the heap
    *
@@ -306,7 +346,7 @@ export class Heap {
   /**
    * Get the tag of the block at the given address
    *
-   * @param heap_addr n_words to the block
+   * @param heap_addr
    * @returns tag of the block
    */
   private tag(heap_addr: HeapAddress): PointerTag {
@@ -314,22 +354,32 @@ export class Heap {
   }
 
   /**
+   * Get the size of the underlying data structure of the tagged pointer
+   *
+   * @param heap_addr
+   * @returns size of the underlying data structure
+   */
+  private size(heap_addr: HeapAddress): number {
+    return this.memory.getUint16(heap_addr * WORD_SIZE + 5)
+  }
+
+  /**
    * Get the raw word value at the given address
    *
-   * @param address n_words to the query block
+   * @param heap_addr
    * @returns raw word value at the given address
    */
-  private get(address: HeapAddress): number {
-    return this.memory.getFloat64(address * WORD_SIZE)
+  private get(heap_addr: HeapAddress): number {
+    return this.memory.getFloat64(heap_addr * WORD_SIZE)
   }
 
   /**
    * Set word value at the given address
    *
-   * @param address n_words to the block
-   * @param value   value to be set
+   * @param heap_addr
+   * @param value value to be set
    */
-  private set(address: number, value: number): void {
-    this.memory.setFloat64(address * WORD_SIZE, value)
+  private set(heap_addr: number, value: number): void {
+    this.memory.setFloat64(heap_addr * WORD_SIZE, value)
   }
 }

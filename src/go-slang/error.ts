@@ -18,6 +18,21 @@ export class UnknownInstructionError extends RuntimeSourceError {
   }
 }
 
+export class InvalidOperationError extends RuntimeSourceError {
+  private errorMessage: string
+
+  public location: NodeLocation
+
+  constructor(errorMessage: string) {
+    super()
+    this.errorMessage = errorMessage
+  }
+
+  public explain(): string {
+    return `invalid operation: ${this.errorMessage}`
+  }
+}
+
 export class UndefinedError extends RuntimeSourceError {
   private identifier: string
 

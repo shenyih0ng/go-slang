@@ -103,6 +103,7 @@ Literal
 BasicLit
     = IntegerLit
     / StringLit
+    / TypeLit
 
 IntegerLit "integer"
     = HexInt 
@@ -144,15 +145,21 @@ HexDigit
     = "_"? [a-fA-F0-9]
 
 StringLit
-    = "\"" chars: (UnicodeLetter / UnicodeDigit)* "\"" {
+    = "\"" chars: (UnicodeLetter / UnicodeDigit / Whitespace)* "\"" {
         return makeNode({ type: "Literal", value: chars.join("") })
       }
+
+TypeLit
+    = ChannelType { return makeNode({ type: "TypeLiteral", value: text() }) }
+
+ChannelType 
+    = CHAN_TOKEN
  
 UnaryExpression
     = CallExpression 
     / PrimaryExpression
     / op:UnaryOperator argument:UnaryExpression {
-        return makeNode({type: "UnaryExpression", operator: makeOperator(op), argument})
+        return makeNode({ type: "UnaryExpression", operator: makeOperator(op), argument })
  	  }
  
 UnaryOperator
@@ -195,7 +202,7 @@ RelationalOperator
     / ">"
 
 CallExpression
-    = callee:PrimaryExpression "(" args:ExpressionList? ")" EOS {
+    = callee:PrimaryExpression "(" args:ExpressionList? ")" {
         return makeNode({ type: "CallExpression", callee, args: args ?? [] })
       }
 
@@ -232,7 +239,7 @@ GoStatement
 /* Send Declaration */
 
 SendStatement
-    = channel:Channel _ "<-" _ value:Expression EOS {
+    = channel:Channel __ "<-" __ value:Expression EOS {
         return makeNode({ type: "SendStatement", channel, value })
       }
 

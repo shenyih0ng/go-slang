@@ -4,6 +4,7 @@ import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import {
   FuncArityError,
   GoExprMustBeFunctionError,
+  InvalidOperationError,
   UndefinedError,
   UnknownInstructionError
 } from './error'
@@ -17,11 +18,14 @@ import {
   Assignment,
   BinaryExpression,
   BinaryOp,
+  BinaryOperator,
   Block,
   BranchOp,
   BuiltinOp,
   CallExpression,
   CallOp,
+  ChanRecv,
+  ChanSend,
   ClosureOp,
   CommandType,
   EmptyStmt,
@@ -46,18 +50,22 @@ import {
   PopTillMOp,
   RetMarker,
   ReturnStatement,
+  SendStatement,
   SourceFile,
   True,
+  TypeLiteral,
   UnaryExpression,
   UnaryOp,
   VarDeclOp,
   VariableDeclaration
 } from './types'
 import { Scheduler } from './scheduler'
+import { PredeclaredFuncT } from './lib/predeclared'
+import { BufferedChannel } from './lib/channel'
 
 export type Control = Stack<Instruction | HeapAddress>
-export type Stash = Stack<HeapAddress>
-export type Builtins = Map<number, (...args: any[]) => any>
+export type Stash = Stack<HeapAddress | any>
+export type Builtins = Map<number, PredeclaredFuncT>
 
 export interface Context {
   C: Control
@@ -194,9 +202,14 @@ const Interpreter: {
     )
   },
 
+  SendStatement: ({ channel, value }: SendStatement, { C, H }) =>
+    C.pushR(...H.allocM([value, channel, ChanSend])),
+
   EmptyStatement: () => void {},
 
   Literal: (inst: Literal, { S, H }) => S.push(H.alloc(inst.value)),
+
+  TypeLiteral: (inst: TypeLiteral, { S }) => S.push(inst),
 
   Identifier: ({ name, loc }: Identifier, { S, E, H }) => {
     const value = E.lookup(name)
@@ -231,14 +244,18 @@ const Interpreter: {
     !E.assign(id.name, H.resolve(S.pop())) ? new UndefinedError(id.name, id.loc!) : void {}
   },
 
-  UnaryOp: ({ opNodeId }: UnaryOp, { S, H, A }) => {
+  UnaryOp: ({ opNodeId }: UnaryOp, { C, S, H, A }) => {
+    const operator = A.get<Operator>(opNodeId).op
+
+    if (operator === '<-') { return C.push(ChanRecv) } // prettier-ignore
+
     const operand = H.resolve(S.pop())
-    S.push(H.alloc(A.get<Operator>(opNodeId).op === '-' ? -operand : operand))
+    return S.push(H.alloc(operator === '-' ? -operand : operand))
   },
 
   BinaryOp: ({ opNodeId }: BinaryOp, { S, H, A }) => {
     const [left, right] = H.resolveM(S.popNR(2))
-    S.push(H.alloc(evaluateBinaryOp(A.get<Operator>(opNodeId).op, left, right)))
+    S.push(H.alloc(evaluateBinaryOp(A.get<Operator>(opNodeId).op as BinaryOperator, left, right)))
   },
 
   CallOp: ({ calleeNodeId, arity }: CallOp, { C, S, E, B, H, A }) => {
@@ -247,7 +264,8 @@ const Interpreter: {
 
     // handle BuiltinOp
     if (op.type === CommandType.BuiltinOp) {
-      return S.push(H.alloc(B.get(op.id)!(...values)))
+      const result = B.get(op.id)!(...values)
+      return result instanceof InvalidOperationError ? result : S.push(H.alloc(result))
     }
 
     // handle ClosureOp
@@ -288,6 +306,28 @@ const Interpreter: {
       .extend(Object.fromEntries(zip(paramNames, values)))
 
     return sched.schedule(new GoRoutine({ C: _C, S: _S, E: _E, B, H, A }, sched))
+  },
+
+  ChanRecvOp: (_inst, { C, S, H }) => {
+    const chanAddr = S.peek()
+    const chan = H.resolve(chanAddr) as BufferedChannel
+
+    // if the channel is empty, we retry the receive operation
+    if (chan.isBufferEmpty()) { return C.push(ChanRecv) } // prettier-ignore
+
+    S.pop()
+    S.push(H.alloc(chan.recv()))
+  },
+
+  ChanSendOp: (_inst, { C, S, H }) => {
+    const chanAddr = S.peek()
+    const chan = H.resolve(chanAddr) as BufferedChannel
+
+    // if the channel is full, we retry the send operation
+    if (chan.isBufferFull()) { return C.push(ChanSend) } // prettier-ignore
+
+    const [_, valueAddr] = S.popN(2)
+    chan.send(H.resolve(valueAddr))
   },
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>
