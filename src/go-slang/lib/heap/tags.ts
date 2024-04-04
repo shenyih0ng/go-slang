@@ -13,5 +13,5 @@ export enum PointerTag {
   ClosureOp,
   EnvOp,
   PopSOp,
-  Channel
+  BufferedChannel
 }

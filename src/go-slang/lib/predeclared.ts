@@ -35,6 +35,7 @@ function make(...args: any): Make | InvalidOperationError {
   if (args.length === 0) {
     return new InvalidOperationError(`not enough arguments for make() (expected 1, found 0)`)
   }
+
   const type = args[0]
   if (!isTypeLiteral(type)) {
     return new InvalidOperationError(`make: first argument must be a type; ${type} is not a type`)
@@ -43,18 +44,23 @@ function make(...args: any): Make | InvalidOperationError {
   if (type.value === Type.Channel) {
     if (args.length > 2) {
       return new InvalidOperationError(
-        `make(${Type.Channel}, ${args.join(', ')}) expects 1 or 2 arguments; found ${args.length}`
+        `make(${Type.Channel}, ${args.slice(1).join(', ')}) expects 1 or 2 arguments; found ${args.length}`
       )
     }
-    if (args.length === 2 && typeof args[1] !== 'number') {
-      return new InvalidOperationError(
-        `make(${Type.Channel}, ${args.join(', ')}) expects second argument to be a number; found ${args[1]}`
-      )
+    if (args.length === 2) {
+      if (typeof args[1] !== 'number') {
+        return new InvalidOperationError(
+          `make(${Type.Channel}, ${args[1]})}) expects second argument to be a number; found ${args[1]}`
+        )
+      }
+      if (args[1] < 0) {
+        return new InvalidOperationError(
+          `make(${Type.Channel}, ${args[1]})}) expects second argument to be a non-negative number; found ${args[1]}`
+        )
+      }
     }
-    // NOTE: we support only buffered channels for now
-    // If there is no buffer size specified, default to 1
-    const bufferSize = args.length === 2 ? args[1] : 1
-    return { type: Type.Channel, size: bufferSize } as MakeChannel
+
+    return { type: Type.Channel, size: args.length === 2 ? args[1] : 0 } as MakeChannel
   }
 
   // NOTE: this should be unreachable

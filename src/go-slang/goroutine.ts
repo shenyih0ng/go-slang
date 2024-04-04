@@ -61,7 +61,7 @@ import {
 } from './types'
 import { Scheduler } from './scheduler'
 import { PredeclaredFuncT } from './lib/predeclared'
-import { Channel } from './lib/channel'
+import { BufferedChannel } from './lib/channel'
 
 export type Control = Stack<Instruction | HeapAddress>
 export type Stash = Stack<HeapAddress | any>
@@ -310,7 +310,7 @@ const Interpreter: {
 
   ChanRecvOp: (_inst, { C, S, H }) => {
     const chanAddr = S.pop()
-    const chan = H.resolve(chanAddr) as Channel
+    const chan = H.resolve(chanAddr) as BufferedChannel
 
     const chanValue = chan.recv()
     if (chanValue !== null) { return S.push(H.alloc(chanValue)) } // prettier-ignore
@@ -322,7 +322,7 @@ const Interpreter: {
 
   ChanSendOp: (_inst, { C, S, H }) => {
     const addrs = S.popN(2)
-    const [channel, value] = H.resolveM(addrs) as [Channel, any]
+    const [channel, value] = H.resolveM(addrs) as [BufferedChannel, any]
 
     if (channel.send(value)) { return } // prettier-ignore
 
