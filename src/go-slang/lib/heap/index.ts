@@ -18,7 +18,7 @@ import {
   isNode
 } from '../../types'
 import { AstMap } from '../astMap'
-import { BufferedChannel } from '../channel'
+import { BufferedChannel, UnbufferedChannel } from '../channel'
 import { DEFAULT_HEAP_SIZE, WORD_SIZE } from './config'
 import { PointerTag } from './tags'
 
@@ -172,6 +172,8 @@ export class Heap {
         } as EnvOp
       case PointerTag.PopSOp:
         return PopS
+      case PointerTag.UnbufferedChannel:
+        return new UnbufferedChannel(new DataView(this.memory.buffer, mem_addr, WORD_SIZE * 2))
       case PointerTag.BufferedChannel:
         const chanMaxBufSize = this.size(heap_addr)
         const chanMemRegion = new DataView(
@@ -298,8 +300,18 @@ export class Heap {
     return ptr_heap_addr
   }
 
+  /* Memory Layout of an BufferedChannel:
+   * [0:tag, 1-2:recvId, 3-4:sendId, 5-6:bufSize, 7:hasSynced] (2 words)
+   */
   public allocateUnbufferedChan(): HeapAddress {
-    throw new Error('allocateUnbufferedChan not implemented.')
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.UnbufferedChannel, 2)
+
+    const ptr_mem_addr = ptr_heap_addr * WORD_SIZE
+    this.memory.setInt16(ptr_mem_addr + 1, -1) // initialize recvId to -1
+    this.memory.setInt16(ptr_mem_addr + 3, -1) // initialize sendId to -1
+    this.memory.setUint8(ptr_mem_addr + 7, 0) // initialize hasSynced to false
+
+    return ptr_heap_addr
   }
 
   /* Memory Layout of an BufferedChannel:
