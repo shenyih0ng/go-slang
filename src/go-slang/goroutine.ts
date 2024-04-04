@@ -12,7 +12,7 @@ import { AstMap } from './lib/astMap'
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment } from './lib/env'
 import { Heap, HeapAddress } from './lib/heap'
-import { Result, isAny } from './lib/utils'
+import { Counter, Result, isAny } from './lib/utils'
 import {
   AssignOp,
   Assignment,
@@ -61,7 +61,7 @@ import {
 } from './types'
 import { Scheduler } from './scheduler'
 import { PredeclaredFuncT } from './lib/predeclared'
-import { BufferedChannel } from './lib/channel'
+import { BufferedChannel, UnbufferedChannel } from './lib/channel'
 
 export type Control = Stack<Instruction | HeapAddress>
 export type Stash = Stack<HeapAddress | any>
@@ -77,12 +77,16 @@ export interface Context {
 }
 
 export class GoRoutine {
+  static idCounter: Counter = new Counter()
+
+  private id: number
   private context: Context
   private scheduler: Scheduler
 
   public isMain: boolean
 
   constructor(context: Context, scheduler: Scheduler, isMain: boolean = false) {
+    this.id = GoRoutine.idCounter.next()
     this.context = context
     this.scheduler = scheduler
     this.isMain = isMain
@@ -100,7 +104,7 @@ export class GoRoutine {
       return Result.fail(new UnknownInstructionError(inst.type))
     }
 
-    const runtimeError = Interpreter[inst.type](inst, this.context, this.scheduler)
+    const runtimeError = Interpreter[inst.type](inst, this.context, this.scheduler, this.id)
     return runtimeError ? Result.fail(runtimeError) : Result.ok()
   }
 }
@@ -109,7 +113,8 @@ const Interpreter: {
   [key: string]: (
     inst: Instruction,
     context: Context,
-    sched: Scheduler
+    sched: Scheduler,
+    routineId: number
   ) => RuntimeSourceError | void
 } = {
   SourceFile: ({ topLevelDecls }: SourceFile, { C, H }) => C.pushR(...H.allocM(topLevelDecls)),
@@ -308,26 +313,46 @@ const Interpreter: {
     return sched.schedule(new GoRoutine({ C: _C, S: _S, E: _E, B, H, A }, sched))
   },
 
-  ChanRecvOp: (_inst, { C, S, H }) => {
-    const chanAddr = S.peek()
-    const chan = H.resolve(chanAddr) as BufferedChannel
+  ChanRecvOp: (_inst, { C, S, H }, _sched, routineId: number) => {
+    const chan = H.resolve(S.peek()) as BufferedChannel | UnbufferedChannel
 
-    // if the channel is empty, we retry the receive operation
-    if (chan.isBufferEmpty()) { return C.push(ChanRecv) } // prettier-ignore
+    if (chan instanceof BufferedChannel) {
+      // if the channel is empty, we retry the receive operation
+      if (chan.isBufferEmpty()) { return C.push(ChanRecv) } // prettier-ignore
 
-    S.pop()
-    S.push(H.alloc(chan.recv()))
+      S.pop() // pop the channel address
+      return S.push(H.alloc(chan.recv()))
+    }
+
+    if (chan instanceof UnbufferedChannel) {
+      const recvValue = chan.recv(routineId)
+      // if we cannot receive, we retry the receive operation
+      if (recvValue === null) { return C.push(ChanRecv) } // prettier-ignore
+
+      S.pop() // pop the channel address
+      return S.push(H.alloc(recvValue))
+    }
   },
 
-  ChanSendOp: (_inst, { C, S, H }) => {
-    const chanAddr = S.peek()
-    const chan = H.resolve(chanAddr) as BufferedChannel
+  ChanSendOp: (_inst, { C, S, H }, _sched, routineId: number) => {
+    const [chan, sendValue] = H.resolveM(S.peekN(2)!) as [BufferedChannel | UnbufferedChannel, any]
 
-    // if the channel is full, we retry the send operation
-    if (chan.isBufferFull()) { return C.push(ChanSend) } // prettier-ignore
+    if (chan instanceof BufferedChannel) {
+      // if the channel is full, we retry the send operation
+      if (chan.isBufferFull()) { return C.push(ChanSend) } // prettier-ignore
 
-    const [_, valueAddr] = S.popN(2)
-    chan.send(H.resolve(valueAddr))
+      S.popN(2) // pop the channel address and the value address
+      chan.send(sendValue)
+      return
+    }
+
+    if (chan instanceof UnbufferedChannel) {
+      // if we cannot send, we retry the send operation
+      if (!chan.send(routineId, sendValue)) { return C.push(ChanSend) } // prettier-ignore
+
+      S.popN(2) // pop the channel address and the value address
+      return
+    }
   },
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>
