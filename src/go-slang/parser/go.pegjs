@@ -202,7 +202,7 @@ RelationalOperator
     / ">"
 
 CallExpression
-    = callee:PrimaryExpression "(" args:ExpressionList? ")" EOS {
+    = callee:PrimaryExpression "(" args:ExpressionList? ")" {
         return makeNode({ type: "CallExpression", callee, args: args ?? [] })
       }
 
@@ -232,14 +232,14 @@ ReceiveExpression
 /* Go Statement */
 
 GoStatement
-    = GO_TOKEN __ call:CallExpression EOS {
+    = GO_TOKEN __ call:Expression EOS {
         return makeNode({ type: "GoStatement", call })
       }
 
 /* Send Declaration */
 
 SendStatement
-    = channel:Channel _ "<-" _ value:Expression EOS {
+    = channel:Channel __ "<-" __ value:Expression EOS {
         return makeNode({ type: "SendStatement", channel, value })
       }
 
