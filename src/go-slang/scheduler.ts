@@ -1,6 +1,7 @@
 import { Context as SlangContext } from '..'
 import { GoRoutine, GoRoutineState } from './goroutine'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
+import { benchmark } from './lib/utils'
 
 type TimeQuanta = number
 
@@ -24,6 +25,7 @@ export class Scheduler {
     this.routines.push([routine, Scheduler.randTimeQuanta()])
   }
 
+  @benchmark('Scheduler.run')
   public run(): void {
     while (this.routines.length) {
       const [routine, timeQuanta] = this.routines.shift() as [GoRoutine, TimeQuanta]

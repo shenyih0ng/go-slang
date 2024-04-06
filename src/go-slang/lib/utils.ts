@@ -61,3 +61,23 @@ export class Counter {
   constructor (start: number = 0) { this.count = start }
   public next(): number { return this.count++ }
 }
+
+export function benchmark(label: string) {
+  function _benchmark(
+    _target: any,
+    _propertyKey: string,
+    descriptor: PropertyDescriptor
+  ): PropertyDescriptor {
+    const originalMethod = descriptor.value
+
+    descriptor.value = function (...args: any[]) {
+      const start = performance.now()
+      const result = originalMethod.apply(this, args)
+      console.log(`[${label}] exec time: ${(performance.now() - start).toFixed(2)}ms`)
+      return result
+    }
+
+    return descriptor
+  }
+  return _benchmark
+}
