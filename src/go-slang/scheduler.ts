@@ -1,5 +1,5 @@
 import { Context as SlangContext } from '..'
-import { GoRoutine } from './goroutine'
+import { GoRoutine, GoRoutineState } from './goroutine'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
 
 type TimeQuanta = number
@@ -25,29 +25,24 @@ export class Scheduler {
   }
 
   public run(): void {
-    while (this.routines.length > 0) {
+    while (this.routines.length) {
       const [routine, timeQuanta] = this.routines.shift() as [GoRoutine, TimeQuanta]
 
-      let hasError: boolean = false
       let remainingTime = timeQuanta
-
       while (remainingTime--) {
-        if (routine.finished()) { break } // prettier-ignore
-
         const result = routine.tick()
-        if (result.isSuccess) { continue } // prettier-ignore
-
-        hasError = true
-        this.slangContext.errors.push(result.error as RuntimeSourceError)
-        break
+        if (result.isFailure) { this.slangContext.errors.push(result.error as RuntimeSourceError) } // prettier-ignore
+        // if the routine is no longer running we schedule it out
+        if (result.unwrap() !== GoRoutineState.Running) { break } // prettier-ignore
       }
 
       // once main exits, the other routines are terminated and the program exits
-      if (routine.isMain && (routine.finished() || hasError)) { return } // prettier-ignore
+      if (routine.isMain && routine.state === GoRoutineState.Exited) { return } // prettier-ignore
 
-      if (!routine.finished() && !hasError) {
-        this.routines.push([routine, Scheduler.randTimeQuanta()])
-      }
+      // if the routine exits, we don't schedule it back
+      if (routine.state === GoRoutineState.Exited) { continue } // prettier-ignore
+
+      this.schedule(routine)
     }
   }
 }
