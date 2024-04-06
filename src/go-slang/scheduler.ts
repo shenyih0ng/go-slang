@@ -2,6 +2,7 @@ import { Context as SlangContext } from '..'
 import { GoRoutine, GoRoutineState } from './goroutine'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import { benchmark } from './lib/utils'
+import { DeadLockError } from './error'
 
 type TimeQuanta = number
 
@@ -25,9 +26,11 @@ export class Scheduler {
     this.routines.push([routine, Scheduler.randTimeQuanta()])
   }
 
-  @benchmark('Scheduler.run')
+  @benchmark('Scheduler::run')
   public run(): void {
-    while (this.routines.length) {
+    let numConsecAllBlocks = 0
+
+    while (this.routines.length && numConsecAllBlocks < this.routines.length) {
       const [routine, timeQuanta] = this.routines.shift() as [GoRoutine, TimeQuanta]
 
       let remainingTime = timeQuanta
@@ -45,6 +48,14 @@ export class Scheduler {
       if (routine.state === GoRoutineState.Exited) { continue } // prettier-ignore
 
       this.schedule(routine)
+
+      const hasRunningRoutines = this.routines.some(
+        ([{ state }]) => state === GoRoutineState.Running
+      )
+      numConsecAllBlocks = hasRunningRoutines ? 0 : numConsecAllBlocks + 1
     }
+
+    // if we reach here, all routines are blocked
+    this.slangContext.errors.push(new DeadLockError())
   }
 }

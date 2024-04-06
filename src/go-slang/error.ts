@@ -88,3 +88,9 @@ export class GoExprMustBeFunctionError extends RuntimeSourceError {
     return `expression in go statement must be function call, not ${this.expr}`
   }
 }
+
+export class DeadLockError extends RuntimeSourceError {
+  public explain() {
+    return 'all goroutines are asleep - deadlock!'
+  }
+}
