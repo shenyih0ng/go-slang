@@ -4,7 +4,6 @@ import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import {
   FuncArityError,
   GoExprMustBeFunctionError,
-  InvalidOperationError,
   UndefinedError,
   UnknownInstructionError
 } from './error'
@@ -76,6 +75,12 @@ export interface Context {
   A: AstMap
 }
 
+export enum GoRoutineState {
+  Running,
+  Blocked,
+  Exited
+}
+
 export class GoRoutine {
   static idCounter: Counter = new Counter()
 
@@ -83,20 +88,18 @@ export class GoRoutine {
   private context: Context
   private scheduler: Scheduler
 
+  public state: GoRoutineState
   public isMain: boolean
 
   constructor(context: Context, scheduler: Scheduler, isMain: boolean = false) {
     this.id = GoRoutine.idCounter.next()
+    this.state = GoRoutineState.Running
     this.context = context
     this.scheduler = scheduler
     this.isMain = isMain
   }
 
-  public finished(): boolean {
-    return this.context.C.isEmpty()
-  }
-
-  public tick(): Result<RuntimeSourceError> {
+  public tick(): Result<GoRoutineState, RuntimeSourceError> {
     const { C, H } = this.context
     const inst = H.resolve(C.pop()) as Instruction
 
@@ -104,8 +107,12 @@ export class GoRoutine {
       return Result.fail(new UnknownInstructionError(inst.type))
     }
 
-    const runtimeError = Interpreter[inst.type](inst, this.context, this.scheduler, this.id)
-    return runtimeError ? Result.fail(runtimeError) : Result.ok()
+    const nextState =
+      Interpreter[inst.type](inst, this.context, this.scheduler, this.id) ??
+      Result.ok(C.isEmpty() ? GoRoutineState.Exited : GoRoutineState.Running)
+
+    this.state = nextState.isSuccess ? nextState.unwrap() : GoRoutineState.Exited
+    return nextState
   }
 }
 
@@ -115,7 +122,7 @@ const Interpreter: {
     context: Context,
     sched: Scheduler,
     routineId: number
-  ) => RuntimeSourceError | void
+  ) => Result<GoRoutineState, RuntimeSourceError> | void
 } = {
   SourceFile: ({ topLevelDecls }: SourceFile, { C, H }) => C.pushR(...H.allocM(topLevelDecls)),
 
@@ -190,11 +197,11 @@ const Interpreter: {
 
   GoStatement: ({ call, loc }: GoStatement, { C, H, A }) => {
     if (call.type !== NodeType.CallExpression) {
-      return new GoExprMustBeFunctionError(call.type, loc!)
+      return Result.fail(new GoExprMustBeFunctionError(call.type, loc!))
     }
 
     const { callee, args } = call as CallExpression
-    return C.pushR(
+    return void C.pushR(
       ...H.allocM([
         callee,
         ...args,
@@ -218,7 +225,7 @@ const Interpreter: {
 
   Identifier: ({ name, loc }: Identifier, { S, E, H }) => {
     const value = E.lookup(name)
-    return value === null ? new UndefinedError(name, loc!) : S.push(H.alloc(value))
+    return value === null ? Result.fail(new UndefinedError(name, loc!)) : S.push(H.alloc(value))
   },
 
   UnaryExpression: ({ argument, operator: op }: UnaryExpression, { C, H, A }) =>
@@ -270,7 +277,7 @@ const Interpreter: {
     // handle BuiltinOp
     if (op.type === CommandType.BuiltinOp) {
       const result = B.get(op.id)!(...values)
-      return result instanceof InvalidOperationError ? result : S.push(H.alloc(result))
+      return result instanceof RuntimeSourceError ? Result.fail(result) : S.push(H.alloc(result))
     }
 
     // handle ClosureOp
@@ -280,7 +287,9 @@ const Interpreter: {
 
     if (paramNames.length !== values.length) {
       const calleeId = A.get<Identifier>(calleeNodeId)
-      return new FuncArityError(calleeId.name, values.length, params.length, calleeId.loc!)
+      return Result.fail(
+        new FuncArityError(calleeId.name, values.length, params.length, calleeId.loc!)
+      )
     }
 
     C.pushR(...H.allocM([body, RetMarker, { type: CommandType.EnvOp, envId: E.id() }]))
@@ -300,7 +309,9 @@ const Interpreter: {
 
     if (paramNames.length !== values.length) {
       const calleeId = A.get<Identifier>(calleeNodeId)
-      return new FuncArityError(calleeId.name, values.length, params.length, calleeId.loc!)
+      return Result.fail(
+        new FuncArityError(calleeId.name, values.length, params.length, calleeId.loc!)
+      )
     }
 
     const _C: Control = new Stack()
@@ -310,7 +321,7 @@ const Interpreter: {
       .setId(envId)
       .extend(Object.fromEntries(zip(paramNames, values)))
 
-    return sched.schedule(new GoRoutine({ C: _C, S: _S, E: _E, B, H, A }, sched))
+    return void sched.schedule(new GoRoutine({ C: _C, S: _S, E: _E, B, H, A }, sched))
   },
 
   ChanRecvOp: (_inst, { C, S, H }, _sched, routineId: number) => {
@@ -318,8 +329,10 @@ const Interpreter: {
 
     if (chan instanceof BufferedChannel) {
       // if the channel is empty, we retry the receive operation
-      if (chan.isBufferEmpty()) { return C.push(ChanRecv) } // prettier-ignore
-
+      if (chan.isBufferEmpty()) {
+        C.push(ChanRecv)
+        return Result.ok(GoRoutineState.Blocked)
+      }
       S.pop() // pop the channel address
       return S.push(H.alloc(chan.recv()))
     }
@@ -327,8 +340,10 @@ const Interpreter: {
     if (chan instanceof UnbufferedChannel) {
       const recvValue = chan.recv(routineId)
       // if we cannot receive, we retry the receive operation
-      if (recvValue === null) { return C.push(ChanRecv) } // prettier-ignore
-
+      if (recvValue === null) {
+        C.push(ChanRecv)
+        return Result.ok(GoRoutineState.Blocked)
+      }
       S.pop() // pop the channel address
       return S.push(H.alloc(recvValue))
     }
@@ -339,20 +354,25 @@ const Interpreter: {
 
     if (chan instanceof BufferedChannel) {
       // if the channel is full, we retry the send operation
-      if (chan.isBufferFull()) { return C.push(ChanSend) } // prettier-ignore
-
+      if (chan.isBufferFull()) {
+        C.push(ChanSend)
+        return Result.ok(GoRoutineState.Blocked)
+      }
       S.popN(2) // pop the channel address and the value address
-      chan.send(sendValue)
-      return
+      return void chan.send(sendValue)
     }
 
     if (chan instanceof UnbufferedChannel) {
       // if we cannot send, we retry the send operation
-      if (!chan.send(routineId, sendValue)) { return C.push(ChanSend) } // prettier-ignore
-
-      S.popN(2) // pop the channel address and the value address
-      return
+      if (!chan.send(routineId, sendValue)) {
+        C.push(ChanSend)
+        return Result.ok(GoRoutineState.Blocked)
+      }
+      return void S.popN(2) // pop the channel address and the value address
     }
+
+    // NOTE: this should be unreachable
+    return
   },
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>

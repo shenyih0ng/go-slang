@@ -22,24 +22,35 @@ export function isAny<T1, T2>(query: T1, values: T2[]): boolean {
   return query ? values.some(v => v === query) : false
 }
 
-export class Result<E extends SourceError> {
+export class Result<T, E extends SourceError> {
+  private value: T | undefined
+
   public isSuccess: boolean
   public isFailure: boolean
   public error: E | undefined
 
-  private constructor(isSuccess: boolean, error?: E) {
+  private constructor(isSuccess: boolean, error?: E, value?: T) {
     this.isSuccess = isSuccess
     this.isFailure = !isSuccess
     this.error = error
+    this.value = value
+
     Object.freeze(this)
   }
 
-  public static ok<E extends SourceError>(): Result<E> {
-    return new Result(true)
+  public unwrap(): T {
+    if (this.isFailure) {
+      throw new Error('called `unwrap` on a failed result')
+    }
+    return this.value as T
   }
 
-  public static fail<E extends SourceError>(error: E): Result<E> {
-    return new Result(false, error)
+  public static ok<T, E extends SourceError>(value?: T): Result<T, E> {
+    return new Result<T, E>(true, undefined, value)
+  }
+
+  public static fail<T, E extends SourceError>(error: E): Result<T, E> {
+    return new Result<T, E>(false, error)
   }
 }
 
@@ -49,4 +60,24 @@ export class Counter {
 
   constructor (start: number = 0) { this.count = start }
   public next(): number { return this.count++ }
+}
+
+export function benchmark(label: string) {
+  function _benchmark(
+    _target: any,
+    _propertyKey: string,
+    descriptor: PropertyDescriptor
+  ): PropertyDescriptor {
+    const originalMethod = descriptor.value
+
+    descriptor.value = function (...args: any[]) {
+      const start = performance.now()
+      const result = originalMethod.apply(this, args)
+      console.log(`[${label}] exec time: ${(performance.now() - start).toFixed(2)}ms`)
+      return result
+    }
+
+    return descriptor
+  }
+  return _benchmark
 }
