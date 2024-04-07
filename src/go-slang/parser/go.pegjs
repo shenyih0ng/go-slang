@@ -99,6 +99,7 @@ IdentifierPart
 
 Literal
     = BasicLit
+    / FunctionLit
  
 BasicLit
     = IntegerLit
@@ -261,6 +262,12 @@ VarSpec
 ShortVariableDeclaration
     = left:IdentifierList _ ":=" _ right:ExpressionList EOS {
         return makeNode({ type: "VariableDeclaration", left, right })
+      }
+
+/* Function Literal */
+FunctionLit "function literal"
+    = FUNC_TOKEN _ params:Signature _ body:Block EOS {
+        return makeNode({ type: "FunctionLiteral", params, body })
       }
 
 /* Function Declaration */
