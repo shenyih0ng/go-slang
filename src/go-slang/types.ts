@@ -235,7 +235,7 @@ export interface BinaryExpression extends Node {
 
 export interface CallExpression extends Node {
   type: NodeType.CallExpression
-  callee: Identifier
+  callee: Identifier | FunctionLiteral
   args: Expression[]
 }
 

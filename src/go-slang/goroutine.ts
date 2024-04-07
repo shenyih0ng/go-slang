@@ -36,6 +36,7 @@ import {
   ForStartMarker,
   ForStatement,
   FunctionDeclaration,
+  FunctionLiteral,
   GoRoutineOp,
   GoStatement,
   Identifier,
@@ -221,6 +222,15 @@ const Interpreter: {
   EmptyStatement: () => void {},
 
   Literal: (inst: Literal, { S, H }) => S.push(H.alloc(inst.value)),
+
+  FunctionLiteral: (funcLitNode: FunctionLiteral, { S, E, H }) =>
+    S.push(
+      H.alloc({
+        type: CommandType.ClosureOp,
+        funcDeclNodeUid: funcLitNode.uid,
+        envId: E.id()
+      } as ClosureOp)
+    ),
 
   TypeLiteral: (inst: TypeLiteral, { S }) => S.push(inst),
 
