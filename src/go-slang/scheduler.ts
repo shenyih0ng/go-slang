@@ -36,7 +36,10 @@ export class Scheduler {
       let remainingTime = timeQuanta
       while (remainingTime--) {
         const result = routine.tick()
-        if (result.isFailure) { this.slangContext.errors.push(result.error as RuntimeSourceError) } // prettier-ignore
+        if (result.isFailure) {
+          this.slangContext.errors.push(result.error as RuntimeSourceError)
+          break
+        }
         // if the routine is no longer running we schedule it out
         if (result.unwrap() !== GoRoutineState.Running) { break } // prettier-ignore
       }

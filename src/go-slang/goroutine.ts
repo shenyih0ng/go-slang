@@ -3,7 +3,7 @@ import { Stack } from '../cse-machine/utils'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import {
   FuncArityError,
-  GoExprMustBeFunctionError,
+  GoExprMustBeFunctionCallError,
   UndefinedError,
   UnknownInstructionError
 } from './error'
@@ -36,6 +36,7 @@ import {
   ForStartMarker,
   ForStatement,
   FunctionDeclaration,
+  FunctionLiteral,
   GoRoutineOp,
   GoStatement,
   Identifier,
@@ -104,6 +105,7 @@ export class GoRoutine {
     const inst = H.resolve(C.pop()) as Instruction
 
     if (!Interpreter.hasOwnProperty(inst.type)) {
+      this.state = GoRoutineState.Exited
       return Result.fail(new UnknownInstructionError(inst.type))
     }
 
@@ -197,7 +199,7 @@ const Interpreter: {
 
   GoStatement: ({ call, loc }: GoStatement, { C, H, A }) => {
     if (call.type !== NodeType.CallExpression) {
-      return Result.fail(new GoExprMustBeFunctionError(call.type, loc!))
+      return Result.fail(new GoExprMustBeFunctionCallError(call.type, loc!))
     }
 
     const { callee, args } = call as CallExpression
@@ -220,6 +222,15 @@ const Interpreter: {
   EmptyStatement: () => void {},
 
   Literal: (inst: Literal, { S, H }) => S.push(H.alloc(inst.value)),
+
+  FunctionLiteral: (funcLitNode: FunctionLiteral, { S, E, H }) =>
+    S.push(
+      H.alloc({
+        type: CommandType.ClosureOp,
+        funcDeclNodeUid: funcLitNode.uid,
+        envId: E.id()
+      } as ClosureOp)
+    ),
 
   TypeLiteral: (inst: TypeLiteral, { S }) => S.push(inst),
 

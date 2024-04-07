@@ -18,6 +18,7 @@ export enum NodeType {
   BinaryExpression = 'BinaryExpression',
   Identifier = 'Identifier',
   Literal = 'Literal',
+  FunctionLiteral = 'FunctionLiteral',
   TypeLiteral = 'TypeLiteral',
   CallExpression = 'CallExpression'
 }
@@ -40,7 +41,13 @@ type Statement =
 
 type SimpleStatement = ExpressionStatement | Assignment | Declaration
 
-type Expression = Identifier | Literal | UnaryExpression | BinaryExpression | CallExpression
+type Expression =
+  | Identifier
+  | Literal
+  | FunctionLiteral
+  | UnaryExpression
+  | BinaryExpression
+  | CallExpression
 
 interface Position {
   line: number
@@ -172,6 +179,12 @@ export interface Literal extends Node {
 
 export const True: Literal = { type: NodeType.Literal, value: true }
 
+export interface FunctionLiteral extends Node {
+  type: NodeType.FunctionLiteral
+  params: Identifier[]
+  body: Block
+}
+
 export enum Type {
   Channel = 'chan'
 }
@@ -222,7 +235,7 @@ export interface BinaryExpression extends Node {
 
 export interface CallExpression extends Node {
   type: NodeType.CallExpression
-  callee: Identifier
+  callee: Identifier | FunctionLiteral
   args: Expression[]
 }
 
