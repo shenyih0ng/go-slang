@@ -89,6 +89,10 @@ export class GoRoutine {
   private context: Context
   private scheduler: Scheduler
 
+  // used to determine if the goroutine made progress in the last tick
+  public progress: boolean = false
+  private prevInst: Instruction | null = null
+
   public state: GoRoutineState
   public isMain: boolean
 
@@ -114,6 +118,9 @@ export class GoRoutine {
       Result.ok(C.isEmpty() ? GoRoutineState.Exited : GoRoutineState.Running)
 
     this.state = nextState.isSuccess ? nextState.unwrap() : GoRoutineState.Exited
+    this.progress = this.prevInst !== inst
+    this.prevInst = inst
+
     return nextState
   }
 }
