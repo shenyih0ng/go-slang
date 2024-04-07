@@ -1,7 +1,7 @@
 import { Context as SlangContext } from '..'
 import { Stack } from '../cse-machine/utils'
 import { Value } from '../types'
-import { Context, GoRoutine } from './goroutine'
+import { Context } from './goroutine'
 import { AstMap } from './lib/astMap'
 import { Environment } from './lib/env'
 import { Heap, HeapAddress } from './lib/heap'
@@ -9,11 +9,7 @@ import { PREDECLARED_FUNCTIONS, PREDECLARED_IDENTIFIERS } from './lib/predeclare
 import { Scheduler } from './scheduler'
 import { BuiltinOp, CallExpression, Instruction, NodeType, SourceFile } from './types'
 
-function initMainGoRoutine(
-  program: SourceFile,
-  slangContext: SlangContext,
-  scheduler: Scheduler
-): GoRoutine {
+function initMainGoRoutineCtx(program: SourceFile, slangContext: SlangContext): Context {
   const C = new Stack<Instruction | HeapAddress>()
   const S = new Stack<any>()
   const E = new Environment({ ...PREDECLARED_IDENTIFIERS })
@@ -45,14 +41,14 @@ function initMainGoRoutine(
   }
   C.pushR(H.alloc(program), H.alloc(CALL_MAIN))
 
-  return new GoRoutine({ C, S, E, B, H, A } as Context, scheduler, true)
+  return { C, S, E, B, H, A } as Context
 }
 
 export function evaluate(program: SourceFile, slangContext: SlangContext): Value {
   const scheduler = new Scheduler(slangContext)
-  const mainR = initMainGoRoutine(program, slangContext, scheduler)
+  const mainRoutineCtx = initMainGoRoutineCtx(program, slangContext)
 
-  scheduler.schedule(mainR)
+  scheduler.spawn(mainRoutineCtx, true)
   scheduler.run()
 
   return 'Program exited'

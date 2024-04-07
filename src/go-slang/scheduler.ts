@@ -1,7 +1,7 @@
 import { Context as SlangContext } from '..'
-import { GoRoutine, GoRoutineState } from './goroutine'
+import { GoRoutine, GoRoutineState, Context } from './goroutine'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
-import { benchmark } from './lib/utils'
+import { Counter, benchmark } from './lib/utils'
 import { DeadLockError } from './error'
 
 type TimeQuanta = number
@@ -10,9 +10,11 @@ export class Scheduler {
   static MIN_TIME_QUANTA = 10
   static MAX_TIME_QUANTA = 20
 
+  // counter to generate unique routine ids
+  private rIdCounter = new Counter()
+
   private slangContext: SlangContext
   private routines: Array<[GoRoutine, TimeQuanta]> = []
-
   constructor(slangContext: SlangContext) {
     this.slangContext = slangContext
   }
@@ -22,8 +24,12 @@ export class Scheduler {
     return Math.floor(Math.random() * (maxTQ - minTQ) + minTQ)
   }
 
-  public schedule(routine: GoRoutine): void {
+  private schedule(routine: GoRoutine): void {
     this.routines.push([routine, Scheduler.randTimeQuanta()])
+  }
+
+  public spawn(goRoutineCtx: Context, isMain: boolean = false) {
+    this.schedule(new GoRoutine(this.rIdCounter.next(), goRoutineCtx, this, isMain))
   }
 
   @benchmark('Scheduler::run')

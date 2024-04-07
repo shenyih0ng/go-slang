@@ -11,7 +11,7 @@ import { AstMap } from './lib/astMap'
 import { evaluateBinaryOp } from './lib/binaryOp'
 import { Environment } from './lib/env'
 import { Heap, HeapAddress } from './lib/heap'
-import { Counter, Result, isAny } from './lib/utils'
+import { Result, isAny } from './lib/utils'
 import {
   AssignOp,
   Assignment,
@@ -83,8 +83,6 @@ export enum GoRoutineState {
 }
 
 export class GoRoutine {
-  static idCounter: Counter = new Counter()
-
   private id: number
   private context: Context
   private scheduler: Scheduler
@@ -96,8 +94,8 @@ export class GoRoutine {
   public state: GoRoutineState
   public isMain: boolean
 
-  constructor(context: Context, scheduler: Scheduler, isMain: boolean = false) {
-    this.id = GoRoutine.idCounter.next()
+  constructor(id: number, context: Context, scheduler: Scheduler, isMain: boolean = false) {
+    this.id = id
     this.state = GoRoutineState.Running
     this.context = context
     this.scheduler = scheduler
@@ -339,7 +337,7 @@ const Interpreter: {
       .setId(envId)
       .extend(Object.fromEntries(zip(paramNames, values)))
 
-    return void sched.schedule(new GoRoutine({ C: _C, S: _S, E: _E, B, H, A }, sched))
+    return void sched.spawn({ C: _C, S: _S, E: _E, B, H, A } as Context)
   },
 
   ChanRecvOp: (_inst, { C, S, H }, _sched, routineId: number) => {
