@@ -28,9 +28,10 @@ export class Scheduler {
 
   @benchmark('Scheduler::run')
   public run(): void {
-    let numConsecAllBlocks = 0
+    // the number of consecutive time quanta where all routines made no progress
+    let numConsecNoProgress = 0
 
-    while (this.routines.length && numConsecAllBlocks < this.routines.length) {
+    while (this.routines.length && numConsecNoProgress < this.routines.length) {
       const [routine, timeQuanta] = this.routines.shift() as [GoRoutine, TimeQuanta]
 
       let remainingTime = timeQuanta
@@ -52,10 +53,8 @@ export class Scheduler {
 
       this.schedule(routine)
 
-      const hasRunningRoutines = this.routines.some(
-        ([{ state }]) => state === GoRoutineState.Running
-      )
-      numConsecAllBlocks = hasRunningRoutines ? 0 : numConsecAllBlocks + 1
+      const hasProgress = this.routines.some(([{ progress }]) => progress)
+      numConsecNoProgress = hasProgress ? 0 : numConsecNoProgress + 1
     }
 
     // if we reach here, all routines are blocked
