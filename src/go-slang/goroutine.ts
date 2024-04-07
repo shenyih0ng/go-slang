@@ -3,7 +3,7 @@ import { Stack } from '../cse-machine/utils'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import {
   FuncArityError,
-  GoExprMustBeFunctionError,
+  GoExprMustBeFunctionCallError,
   UndefinedError,
   UnknownInstructionError
 } from './error'
@@ -199,7 +199,7 @@ const Interpreter: {
 
   GoStatement: ({ call, loc }: GoStatement, { C, H, A }) => {
     if (call.type !== NodeType.CallExpression) {
-      return Result.fail(new GoExprMustBeFunctionError(call.type, loc!))
+      return Result.fail(new GoExprMustBeFunctionCallError(call.type, loc!))
     }
 
     const { callee, args } = call as CallExpression

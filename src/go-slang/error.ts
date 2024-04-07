@@ -73,7 +73,7 @@ export class FuncArityError extends RuntimeSourceError {
   }
 }
 
-export class GoExprMustBeFunctionError extends RuntimeSourceError {
+export class GoExprMustBeFunctionCallError extends RuntimeSourceError {
   private expr: string
 
   public location: NodeLocation
@@ -85,7 +85,7 @@ export class GoExprMustBeFunctionError extends RuntimeSourceError {
   }
 
   public explain() {
-    return `expression in go statement must be function call, not ${this.expr}`
+    return `expression in go must be function call, not ${this.expr}`
   }
 }
 
