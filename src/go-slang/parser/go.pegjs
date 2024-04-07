@@ -146,7 +146,7 @@ HexDigit
     = "_"? [a-fA-F0-9]
 
 StringLit
-    = "\"" chars: (UnicodeLetter / UnicodeDigit / Whitespace)* "\"" {
+    = "\"" chars:[^"\n\r]* "\"" {
         return makeNode({ type: "Literal", value: chars.join("") })
       }
 
@@ -265,6 +265,7 @@ ShortVariableDeclaration
       }
 
 /* Function Literal */
+
 FunctionLit "function literal"
     = FUNC_TOKEN _ params:Signature _ body:Block EOS {
         return makeNode({ type: "FunctionLiteral", params, body })
