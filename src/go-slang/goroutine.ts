@@ -104,6 +104,7 @@ export class GoRoutine {
     const inst = H.resolve(C.pop()) as Instruction
 
     if (!Interpreter.hasOwnProperty(inst.type)) {
+      this.state = GoRoutineState.Exited
       return Result.fail(new UnknownInstructionError(inst.type))
     }
 
