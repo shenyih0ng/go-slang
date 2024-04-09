@@ -1,3 +1,4 @@
+import { HeapAddress } from './heap'
 import { Counter } from './utils'
 
 type Maybe<T> = T | null
@@ -74,5 +75,23 @@ export class Environment {
     newEnv.frameMap = this.frameMap
     newEnv.frameIdCounter = this.frameIdCounter
     return newEnv
+  }
+
+  public activeHeapAddresses(): Set<HeapAddress> {
+    const activeAddrSet = new Set<HeapAddress>()
+
+    this.frameMap.forEach(frame => {
+      let curr = frame
+      while (curr) {
+        frame.bindings.forEach(value => {
+          if (typeof value === 'number') {
+            activeAddrSet.add(value)
+          }
+        })
+        curr = curr.parent as Frame
+      }
+    })
+
+    return activeAddrSet
   }
 }

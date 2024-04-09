@@ -1,3 +1,5 @@
+import { OutOfMemoryError } from '../../error'
+import { Scheduler } from '../../scheduler'
 import {
   AssignOp,
   BinaryOp,
@@ -30,23 +32,29 @@ function ceilPow2(n: number): number {
   return 2 ** Math.ceil(Math.log2(n))
 }
 
-function buddyAddr(addr: number, bIdx: number): number {
+function getBuddyAddr(addr: number, bIdx: number): number {
   return addr ^ (1 << bIdx)
 }
 
 export type HeapAddress = number
 
 export class Heap {
-  private memory: DataView
+  public memory: DataView
   // buddyBlocks[i] stores the set of free blocks of size 2^i
   // free blocks are represented by their starting address
   private buddyBlocks: Array<Set<number>>
+  // map of heap addresses to their corresponding block size
+  private buddyBlockMap: Map<number, number> = new Map()
 
   // we need to keep track of the AstMap to be able to resolve AST nodes stored in the heap
   private astMap: AstMap
+  // keep a reference to the scheduler to be able to get active routines for garbage collection
+  // NOTE: this is hacky and should be refactored
+  private scheduler: Scheduler
 
-  constructor(astMap: AstMap, n_words?: number) {
+  constructor(astMap: AstMap, scheduler: Scheduler, n_words?: number) {
     this.astMap = astMap
+    this.scheduler = scheduler
 
     const totalBytes = (n_words ?? DEFAULT_HEAP_SIZE) * WORD_SIZE
     this.memory = new DataView(new ArrayBuffer(totalBytes))
@@ -68,6 +76,7 @@ export class Heap {
 
     const addr = this.buddyBlocks[bIdx].values().next().value
     this.buddyBlocks[bIdx].delete(addr)
+    this.buddyBlockMap.set(addr, bIdx)
     return addr
   }
 
@@ -84,8 +93,18 @@ export class Heap {
     this.buddyBlocks[idx].delete(addr)
 
     this.buddyBlocks[idx - 1].add(addr)
-    this.buddyBlocks[idx - 1].add(buddyAddr(addr, idx - 1))
+    this.buddyBlocks[idx - 1].add(getBuddyAddr(addr, idx - 1))
     return true
+  }
+
+  private buddyFree(addr: HeapAddress): void {
+    const bIdx = this.buddyBlockMap.get(addr)
+    if (bIdx === undefined) {
+      throw new Error('Free is utilized on a non-allocated memory address.')
+    }
+
+    this.buddyBlocks[bIdx].add(addr)
+    this.buddyBlockMap.delete(addr)
   }
 
   /**
@@ -165,7 +184,7 @@ export class Heap {
       return heap_addr
     }
 
-    const tag = this.memory.getInt8(heap_addr)
+    const tag = this.tag(heap_addr)
     switch (tag) {
       case PointerTag.False:
         return false
@@ -352,14 +371,45 @@ export class Heap {
    * @returns Address of the allocated block
    */
   private allocateTaggedPtr(tag: PointerTag, size: number = 0): HeapAddress {
-    // TODO handle out of memory error
-    const alloc_heap_addr = this.buddyAlloc((size + 1) * WORD_SIZE)
+    let alloc_heap_addr = this.buddyAlloc((size + 1) * WORD_SIZE)
+
+    if (alloc_heap_addr === -1) {
+      // perform garbage collection
+      const activeHeapAddresses = new Set<HeapAddress>()
+      for (const gr of this.scheduler.activeGoRoutines) {
+        for (const addr of gr.activeHeapAddresses()) {
+          activeHeapAddresses.add(addr)
+        }
+      }
+
+      this.buddyBlockMap.forEach((_, addr) => {
+        if (!activeHeapAddresses.has(addr) && this.tag(addr) !== PointerTag.AstNode) {
+          this.buddyFree(addr)
+        }
+      })
+
+      // retry allocation
+      alloc_heap_addr = this.buddyAlloc((size + 1) * WORD_SIZE)
+      // if allocation still fails, we hard fail
+      if (alloc_heap_addr === -1) { throw new OutOfMemoryError() } // prettier-ignore
+    }
+
     // set the tag (1 byte) of the block
     this.memory.setInt8(alloc_heap_addr, tag)
     // set the size (2 bytes) of the underlying data structure
     this.memory.setUint16(alloc_heap_addr + SIZE_OFFSET, size)
 
     return alloc_heap_addr
+  }
+
+  /**
+   * Get the tag of the tagged pointer
+   *
+   * @param heap_addr
+   * @returns tag of the tagged pointer
+   */
+  private tag(heap_addr: HeapAddress): PointerTag {
+    return this.memory.getInt8(heap_addr)
   }
 
   /**

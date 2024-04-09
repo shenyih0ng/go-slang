@@ -18,7 +18,7 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
   // `SourceFile` is the root node of the AST which has latest (monotonically increasing) uid of all AST nodes
   // Therefore, the next uid to be used to track AST nodes is the uid of SourceFile + 1
   const A = new AstMap((program.uid as number) + 1)
-  const H = new Heap(A)
+  const H = new Heap(A, scheduler)
 
   // inject predeclared functions into the global environment
   const B = new Map<number, (...args: any[]) => any>()

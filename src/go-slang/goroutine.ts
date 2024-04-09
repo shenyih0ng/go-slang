@@ -104,6 +104,19 @@ export class GoRoutine {
     this.isMain = isMain
   }
 
+  public activeHeapAddresses(): Set<HeapAddress> {
+    const activeAddrSet = new Set<HeapAddress>()
+
+    // roots: Control, Stash, Environment
+    const { C, S, E } = this.context
+
+    const isHeapAddr = (addr: any): addr is HeapAddress => typeof addr === 'number'
+    C.getStack().filter(isHeapAddr).forEach(addr => activeAddrSet.add(addr)) // prettier-ignore
+    S.getStack().filter(isHeapAddr).forEach(addr => activeAddrSet.add(addr)) // prettier-ignore
+
+    return new Set([...activeAddrSet, ...E.activeHeapAddresses()])
+  }
+
   public tick(): Result<GoRoutineState, RuntimeSourceError> {
     const { C, H } = this.context
     const inst = H.resolve(C.pop()) as Instruction
@@ -113,15 +126,20 @@ export class GoRoutine {
       return Result.fail(new UnknownInstructionError(inst.type))
     }
 
-    const nextState =
-      Interpreter[inst.type](inst, this.context, this.scheduler, this.id) ??
-      Result.ok(C.isEmpty() ? GoRoutineState.Exited : GoRoutineState.Running)
+    try {
+      const nextState =
+        Interpreter[inst.type](inst, this.context, this.scheduler, this.id) ??
+        Result.ok(C.isEmpty() ? GoRoutineState.Exited : GoRoutineState.Running)
 
-    this.state = nextState.isSuccess ? nextState.unwrap() : GoRoutineState.Exited
-    this.progress = this.prevInst !== inst
-    this.prevInst = inst
+      this.state = nextState.isSuccess ? nextState.unwrap() : GoRoutineState.Exited
+      this.progress = this.prevInst !== inst
+      this.prevInst = inst
 
-    return nextState
+      return nextState
+    } catch (error) {
+      this.state = GoRoutineState.Exited
+      return Result.fail(error)
+    }
   }
 }
 
