@@ -24,7 +24,9 @@ import {
   CallExpression,
   CallOp,
   ChanRecv,
+  ChanRecvOp,
   ChanSend,
+  ChanSendOp,
   ClosureOp,
   CommandType,
   EmptyStmt,
@@ -146,7 +148,7 @@ const Interpreter: {
   },
 
   ReturnStatement: ({ expression }: ReturnStatement, { C, H }) =>
-    C.pushR(H.alloc(expression), H.alloc(PopTillM(RetMarker))),
+    C.pushR(H.alloc(expression), H.alloc(PopTillM(RetMarker()))),
 
   IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C, H }) => {
     const branchOp: BranchOp = { type: CommandType.BranchOp, cons, alt }
@@ -156,14 +158,14 @@ const Interpreter: {
   ForStatement: (inst: ForStatement, { C, H }) => {
     const { form, block: forBlock } = inst
     if (form === null || form.type === ForFormType.ForCondition) {
-      const branch = { type: CommandType.BranchOp, cons: forBlock, alt: PopTillM(ForEndMarker) }
+      const branch = { type: CommandType.BranchOp, cons: forBlock, alt: PopTillM(ForEndMarker()) }
       C.pushR(
         ...H.allocM([
           form ? form.expression : True,
           branch as BranchOp,
-          ForStartMarker,
+          ForStartMarker(),
           inst,
-          ForEndMarker
+          ForEndMarker()
         ])
       )
     } else if (form.type === ForFormType.ForClause) {
@@ -174,7 +176,7 @@ const Interpreter: {
         block: {
           type: NodeType.Block,
           statements: [
-            { ...forBlock, statements: forBlock.statements.concat(ForPostMarker) },
+            { ...forBlock, statements: forBlock.statements.concat(ForPostMarker()) },
             post ?? EmptyStmt
           ]
         }
@@ -183,9 +185,10 @@ const Interpreter: {
     }
   },
 
-  BreakStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForEndMarker))),
+  BreakStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForEndMarker()))),
 
-  ContinueStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForPostMarker, ForStartMarker))),
+  ContinueStatement: (_inst, { C, H }) =>
+    C.push(H.alloc(PopTillM(ForPostMarker(), ForStartMarker()))),
 
   VariableDeclaration: ({ left, right }: VariableDeclaration, { C, H, A }) => {
     const decls = A.trackM(left).map(({ uid }) => ({ type: CommandType.VarDeclOp, idNodeUid: uid }))
@@ -222,7 +225,7 @@ const Interpreter: {
   },
 
   SendStatement: ({ channel, value }: SendStatement, { C, H }) =>
-    C.pushR(...H.allocM([value, channel, ChanSend])),
+    C.pushR(...H.allocM([value, channel, ChanSend()])),
 
   EmptyStatement: () => void {},
 
@@ -275,7 +278,7 @@ const Interpreter: {
   UnaryOp: ({ opNodeId }: UnaryOp, { C, S, H, A }) => {
     const operator = A.get<Operator>(opNodeId).op
 
-    if (operator === '<-') { return C.push(ChanRecv) } // prettier-ignore
+    if (operator === '<-') { return C.push(ChanRecv()) } // prettier-ignore
 
     const operand = H.resolve(S.pop())
     return S.push(H.alloc(operator === '-' ? -operand : operand))
@@ -308,7 +311,7 @@ const Interpreter: {
       )
     }
 
-    C.pushR(...H.allocM([body, RetMarker, { type: CommandType.EnvOp, envId: E.id() }]))
+    C.pushR(...H.allocM([body, RetMarker(), { type: CommandType.EnvOp, envId: E.id() }]))
     // set the environment to the closure's environment
     E.setId(envId).extend(Object.fromEntries(zip(paramNames, values)))
   },
@@ -340,13 +343,13 @@ const Interpreter: {
     return void sched.spawn({ C: _C, S: _S, E: _E, B, H, A } as Context)
   },
 
-  ChanRecvOp: (_inst, { C, S, H }, _sched, routineId: number) => {
+  ChanRecvOp: (inst: ChanRecvOp, { C, S, H }, _sched, routineId: number) => {
     const chan = H.resolve(S.peek()) as BufferedChannel | UnbufferedChannel
 
     if (chan instanceof BufferedChannel) {
       // if the channel is empty, we retry the receive operation
       if (chan.isBufferEmpty()) {
-        C.push(ChanRecv)
+        C.push(inst)
         return Result.ok(GoRoutineState.Blocked)
       }
       S.pop() // pop the channel address
@@ -357,7 +360,7 @@ const Interpreter: {
       const recvValue = chan.recv(routineId)
       // if we cannot receive, we retry the receive operation
       if (recvValue === null) {
-        C.push(ChanRecv)
+        C.push(inst)
         return Result.ok(GoRoutineState.Blocked)
       }
       S.pop() // pop the channel address
@@ -365,13 +368,13 @@ const Interpreter: {
     }
   },
 
-  ChanSendOp: (_inst, { C, S, H }, _sched, routineId: number) => {
+  ChanSendOp: (inst: ChanSendOp, { C, S, H }, _sched, routineId: number) => {
     const [chan, sendValue] = H.resolveM(S.peekN(2)!) as [BufferedChannel | UnbufferedChannel, any]
 
     if (chan instanceof BufferedChannel) {
       // if the channel is full, we retry the send operation
       if (chan.isBufferFull()) {
-        C.push(ChanSend)
+        C.push(inst)
         return Result.ok(GoRoutineState.Blocked)
       }
       S.popN(2) // pop the channel address and the value address
@@ -381,7 +384,7 @@ const Interpreter: {
     if (chan instanceof UnbufferedChannel) {
       // if we cannot send, we retry the send operation
       if (!chan.send(routineId, sendValue)) {
-        C.push(ChanSend)
+        C.push(inst)
         return Result.ok(GoRoutineState.Blocked)
       }
       return void S.popN(2) // pop the channel address and the value address

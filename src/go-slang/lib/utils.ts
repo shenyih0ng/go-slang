@@ -1,3 +1,4 @@
+import { isEqual } from 'lodash'
 import { SourceError } from '../../types'
 
 export function zip<T1, T2>(first: Array<T1>, second: Array<T2>): Array<[T1, T2]> {
@@ -19,7 +20,7 @@ export function zip<T1, T2>(first: Array<T1>, second: Array<T2>): Array<[T1, T2]
  * @returns true if the query value is in the list of values, false otherwise.
  */
 export function isAny<T1, T2>(query: T1, values: T2[]): boolean {
-  return query ? values.some(v => v === query) : false
+  return query ? values.some(v => isEqual(query, v)) : false
 }
 
 export class Result<T, E extends SourceError> {
