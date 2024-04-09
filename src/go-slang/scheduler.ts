@@ -2,7 +2,7 @@ import { Context as SlangContext } from '..'
 import { GoRoutine, GoRoutineState, Context } from './goroutine'
 import { RuntimeSourceError } from '../errors/runtimeSourceError'
 import { Counter, benchmark } from './lib/utils'
-import { DeadLockError } from './error'
+import { DeadLockError, OutOfMemoryError } from './error'
 
 type TimeQuanta = number
 
@@ -15,6 +15,7 @@ export class Scheduler {
 
   private slangContext: SlangContext
   private routines: Array<[GoRoutine, TimeQuanta]> = []
+
   constructor(slangContext: SlangContext) {
     this.slangContext = slangContext
   }
@@ -38,18 +39,24 @@ export class Scheduler {
     let numConsecNoProgress = 0
 
     while (this.routines.length && numConsecNoProgress < this.routines.length) {
-      const [routine, timeQuanta] = this.routines.shift() as [GoRoutine, TimeQuanta]
+      const [routine, timeQuanta] = this.routines[0] as [GoRoutine, TimeQuanta]
 
       let remainingTime = timeQuanta
       while (remainingTime--) {
         const result = routine.tick()
         if (result.isFailure) {
           this.slangContext.errors.push(result.error as RuntimeSourceError)
+
+          // if the routine runs out of memory, we terminate the program
+          if (result.error instanceof OutOfMemoryError) { return } // prettier-ignore
+
           break
         }
         // if the routine is no longer running we schedule it out
         if (result.unwrap() !== GoRoutineState.Running) { break } // prettier-ignore
       }
+
+      this.routines.shift() // remove the routine from the queue
 
       // once main exits, the other routines are terminated and the program exits
       if (routine.isMain && routine.state === GoRoutineState.Exited) { return } // prettier-ignore
@@ -65,5 +72,9 @@ export class Scheduler {
 
     // if we reach here, all routines are blocked
     this.slangContext.errors.push(new DeadLockError())
+  }
+
+  public get activeGoRoutines(): Array<GoRoutine> {
+    return this.routines.map(([routine]) => routine)
   }
 }

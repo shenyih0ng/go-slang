@@ -24,7 +24,9 @@ import {
   CallExpression,
   CallOp,
   ChanRecv,
+  ChanRecvOp,
   ChanSend,
+  ChanSendOp,
   ClosureOp,
   CommandType,
   EmptyStmt,
@@ -102,6 +104,19 @@ export class GoRoutine {
     this.isMain = isMain
   }
 
+  public activeHeapAddresses(): Set<HeapAddress> {
+    const activeAddrSet = new Set<HeapAddress>()
+
+    // roots: Control, Stash, Environment
+    const { C, S, E } = this.context
+
+    const isHeapAddr = (addr: any): addr is HeapAddress => typeof addr === 'number'
+    C.getStack().filter(isHeapAddr).forEach(addr => activeAddrSet.add(addr)) // prettier-ignore
+    S.getStack().filter(isHeapAddr).forEach(addr => activeAddrSet.add(addr)) // prettier-ignore
+
+    return new Set([...activeAddrSet, ...E.activeHeapAddresses()])
+  }
+
   public tick(): Result<GoRoutineState, RuntimeSourceError> {
     const { C, H } = this.context
     const inst = H.resolve(C.pop()) as Instruction
@@ -111,15 +126,20 @@ export class GoRoutine {
       return Result.fail(new UnknownInstructionError(inst.type))
     }
 
-    const nextState =
-      Interpreter[inst.type](inst, this.context, this.scheduler, this.id) ??
-      Result.ok(C.isEmpty() ? GoRoutineState.Exited : GoRoutineState.Running)
+    try {
+      const nextState =
+        Interpreter[inst.type](inst, this.context, this.scheduler, this.id) ??
+        Result.ok(C.isEmpty() ? GoRoutineState.Exited : GoRoutineState.Running)
 
-    this.state = nextState.isSuccess ? nextState.unwrap() : GoRoutineState.Exited
-    this.progress = this.prevInst !== inst
-    this.prevInst = inst
+      this.state = nextState.isSuccess ? nextState.unwrap() : GoRoutineState.Exited
+      this.progress = this.prevInst !== inst
+      this.prevInst = inst
 
-    return nextState
+      return nextState
+    } catch (error) {
+      this.state = GoRoutineState.Exited
+      return Result.fail(error)
+    }
   }
 }
 
@@ -133,12 +153,15 @@ const Interpreter: {
 } = {
   SourceFile: ({ topLevelDecls }: SourceFile, { C, H }) => C.pushR(...H.allocM(topLevelDecls)),
 
-  FunctionDeclaration: (funcDeclNode: FunctionDeclaration, { E, A }) =>
-    E.declare(funcDeclNode.id.name, {
-      type: CommandType.ClosureOp,
-      funcDeclNodeUid: A.track(funcDeclNode).uid,
-      envId: E.id()
-    } as ClosureOp),
+  FunctionDeclaration: (funcDeclNode: FunctionDeclaration, { E, H, A }) =>
+    E.declare(
+      funcDeclNode.id.name,
+      H.alloc({
+        type: CommandType.ClosureOp,
+        funcDeclNodeUid: A.track(funcDeclNode).uid,
+        envId: E.id()
+      } as ClosureOp)
+    ),
 
   Block: ({ statements }: Block, { C, E, H }) => {
     C.pushR(...H.allocM([...statements, { type: CommandType.EnvOp, envId: E.id() }]))
@@ -146,7 +169,7 @@ const Interpreter: {
   },
 
   ReturnStatement: ({ expression }: ReturnStatement, { C, H }) =>
-    C.pushR(H.alloc(expression), H.alloc(PopTillM(RetMarker))),
+    C.pushR(H.alloc(expression), H.alloc(PopTillM(RetMarker()))),
 
   IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C, H }) => {
     const branchOp: BranchOp = { type: CommandType.BranchOp, cons, alt }
@@ -156,14 +179,14 @@ const Interpreter: {
   ForStatement: (inst: ForStatement, { C, H }) => {
     const { form, block: forBlock } = inst
     if (form === null || form.type === ForFormType.ForCondition) {
-      const branch = { type: CommandType.BranchOp, cons: forBlock, alt: PopTillM(ForEndMarker) }
+      const branch = { type: CommandType.BranchOp, cons: forBlock, alt: PopTillM(ForEndMarker()) }
       C.pushR(
         ...H.allocM([
           form ? form.expression : True,
           branch as BranchOp,
-          ForStartMarker,
+          ForStartMarker(),
           inst,
-          ForEndMarker
+          ForEndMarker()
         ])
       )
     } else if (form.type === ForFormType.ForClause) {
@@ -174,7 +197,7 @@ const Interpreter: {
         block: {
           type: NodeType.Block,
           statements: [
-            { ...forBlock, statements: forBlock.statements.concat(ForPostMarker) },
+            { ...forBlock, statements: forBlock.statements.concat(ForPostMarker()) },
             post ?? EmptyStmt
           ]
         }
@@ -183,9 +206,10 @@ const Interpreter: {
     }
   },
 
-  BreakStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForEndMarker))),
+  BreakStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForEndMarker()))),
 
-  ContinueStatement: (_inst, { C, H }) => C.push(H.alloc(PopTillM(ForPostMarker, ForStartMarker))),
+  ContinueStatement: (_inst, { C, H }) =>
+    C.push(H.alloc(PopTillM(ForPostMarker(), ForStartMarker()))),
 
   VariableDeclaration: ({ left, right }: VariableDeclaration, { C, H, A }) => {
     const decls = A.trackM(left).map(({ uid }) => ({ type: CommandType.VarDeclOp, idNodeUid: uid }))
@@ -222,7 +246,7 @@ const Interpreter: {
   },
 
   SendStatement: ({ channel, value }: SendStatement, { C, H }) =>
-    C.pushR(...H.allocM([value, channel, ChanSend])),
+    C.pushR(...H.allocM([value, channel, ChanSend()])),
 
   EmptyStatement: () => void {},
 
@@ -241,7 +265,7 @@ const Interpreter: {
 
   Identifier: ({ name, loc }: Identifier, { S, E, H }) => {
     const value = E.lookup(name)
-    return value === null ? Result.fail(new UndefinedError(name, loc!)) : S.push(H.alloc(value))
+    return value === null ? Result.fail(new UndefinedError(name, loc!)) : S.push(value)
   },
 
   UnaryExpression: ({ argument, operator: op }: UnaryExpression, { C, H, A }) =>
@@ -264,18 +288,18 @@ const Interpreter: {
 
   VarDeclOp: ({ idNodeUid, zeroValue }: VarDeclOp, { S, E, H, A }) => {
     const name = A.get<Identifier>(idNodeUid).name
-    zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop()))
+    zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop())
   },
 
   AssignOp: ({ idNodeUid }: AssignOp, { S, E, H, A }) => {
     const id = A.get<Identifier>(idNodeUid)
-    !E.assign(id.name, H.resolve(S.pop())) ? new UndefinedError(id.name, id.loc!) : void {}
+    !E.assign(id.name, S.pop()) ? new UndefinedError(id.name, id.loc!) : void {}
   },
 
   UnaryOp: ({ opNodeId }: UnaryOp, { C, S, H, A }) => {
     const operator = A.get<Operator>(opNodeId).op
 
-    if (operator === '<-') { return C.push(ChanRecv) } // prettier-ignore
+    if (operator === '<-') { return C.push(ChanRecv()) } // prettier-ignore
 
     const operand = H.resolve(S.pop())
     return S.push(H.alloc(operator === '-' ? -operand : operand))
@@ -308,9 +332,9 @@ const Interpreter: {
       )
     }
 
-    C.pushR(...H.allocM([body, RetMarker, { type: CommandType.EnvOp, envId: E.id() }]))
+    C.pushR(...H.allocM([body, RetMarker(), { type: CommandType.EnvOp, envId: E.id() }]))
     // set the environment to the closure's environment
-    E.setId(envId).extend(Object.fromEntries(zip(paramNames, values)))
+    E.setId(envId).extend(Object.fromEntries(zip(paramNames, H.allocM(values))))
   },
 
   // TODO: should we combine it with CallOp? there is a couple of duplicated logic
@@ -335,18 +359,18 @@ const Interpreter: {
     const _S: Stash = new Stack()
     const _E = E.copy()
       .setId(envId)
-      .extend(Object.fromEntries(zip(paramNames, values)))
+      .extend(Object.fromEntries(zip(paramNames, H.allocM(values))))
 
     return void sched.spawn({ C: _C, S: _S, E: _E, B, H, A } as Context)
   },
 
-  ChanRecvOp: (_inst, { C, S, H }, _sched, routineId: number) => {
+  ChanRecvOp: (inst: ChanRecvOp, { C, S, H }, _sched, routineId: number) => {
     const chan = H.resolve(S.peek()) as BufferedChannel | UnbufferedChannel
 
     if (chan instanceof BufferedChannel) {
       // if the channel is empty, we retry the receive operation
       if (chan.isBufferEmpty()) {
-        C.push(ChanRecv)
+        C.push(inst)
         return Result.ok(GoRoutineState.Blocked)
       }
       S.pop() // pop the channel address
@@ -357,7 +381,7 @@ const Interpreter: {
       const recvValue = chan.recv(routineId)
       // if we cannot receive, we retry the receive operation
       if (recvValue === null) {
-        C.push(ChanRecv)
+        C.push(inst)
         return Result.ok(GoRoutineState.Blocked)
       }
       S.pop() // pop the channel address
@@ -365,13 +389,13 @@ const Interpreter: {
     }
   },
 
-  ChanSendOp: (_inst, { C, S, H }, _sched, routineId: number) => {
+  ChanSendOp: (inst: ChanSendOp, { C, S, H }, _sched, routineId: number) => {
     const [chan, sendValue] = H.resolveM(S.peekN(2)!) as [BufferedChannel | UnbufferedChannel, any]
 
     if (chan instanceof BufferedChannel) {
       // if the channel is full, we retry the send operation
       if (chan.isBufferFull()) {
-        C.push(ChanSend)
+        C.push(inst)
         return Result.ok(GoRoutineState.Blocked)
       }
       S.popN(2) // pop the channel address and the value address
@@ -381,7 +405,7 @@ const Interpreter: {
     if (chan instanceof UnbufferedChannel) {
       // if we cannot send, we retry the send operation
       if (!chan.send(routineId, sendValue)) {
-        C.push(ChanSend)
+        C.push(inst)
         return Result.ok(GoRoutineState.Blocked)
       }
       return void S.popN(2) // pop the channel address and the value address

@@ -307,13 +307,13 @@ export interface ChanRecvOp extends Command {
   type: CommandType.ChanRecvOp
 }
 
-export const ChanRecv: Instruction = { type: CommandType.ChanRecvOp }
+export const ChanRecv = () => ({ type: CommandType.ChanRecvOp }) as ChanRecvOp
 
 export interface ChanSendOp extends Command {
   type: CommandType.ChanSendOp
 }
 
-export const ChanSend: Instruction = { type: CommandType.ChanSendOp }
+export const ChanSend = () => ({ type: CommandType.ChanSendOp }) as ChanSendOp
 
 export interface BranchOp extends Command {
   type: CommandType.BranchOp
@@ -360,13 +360,13 @@ export interface Marker {
   type: MarkerType
 }
 
-export const RetMarker = { type: MarkerType.RetMarker }
+export const RetMarker = () => ({ type: MarkerType.RetMarker })
 
-export const ForStartMarker = { type: MarkerType.ForStartMarker }
+export const ForStartMarker = () => ({ type: MarkerType.ForStartMarker })
 
-export const ForPostMarker = { type: MarkerType.ForPostMarker }
+export const ForPostMarker = () => ({ type: MarkerType.ForPostMarker })
 
-export const ForEndMarker = { type: MarkerType.ForEndMarker }
+export const ForEndMarker = () => ({ type: MarkerType.ForEndMarker })
 
 export type Instruction =
   | SourceFile

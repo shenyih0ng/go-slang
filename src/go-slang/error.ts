@@ -94,3 +94,9 @@ export class DeadLockError extends RuntimeSourceError {
     return 'all goroutines are asleep - deadlock!'
   }
 }
+
+export class OutOfMemoryError extends RuntimeSourceError {
+  public explain() {
+    return 'runtime: out of memory'
+  }
+}

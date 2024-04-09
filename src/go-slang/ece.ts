@@ -9,15 +9,16 @@ import { PREDECLARED_FUNCTIONS, PREDECLARED_IDENTIFIERS } from './lib/predeclare
 import { Scheduler } from './scheduler'
 import { BuiltinOp, CallExpression, Instruction, NodeType, SourceFile } from './types'
 
-function initMainGoRoutineCtx(program: SourceFile, slangContext: SlangContext): Context {
+export function evaluate(program: SourceFile, slangContext: SlangContext): Value {
+  const scheduler = new Scheduler(slangContext)
+
   const C = new Stack<Instruction | HeapAddress>()
   const S = new Stack<any>()
   const E = new Environment({ ...PREDECLARED_IDENTIFIERS })
-
   // `SourceFile` is the root node of the AST which has latest (monotonically increasing) uid of all AST nodes
   // Therefore, the next uid to be used to track AST nodes is the uid of SourceFile + 1
   const A = new AstMap((program.uid as number) + 1)
-  const H = new Heap(A)
+  const H = new Heap(A, scheduler)
 
   // inject predeclared functions into the global environment
   const B = new Map<number, (...args: any[]) => any>()
@@ -41,14 +42,7 @@ function initMainGoRoutineCtx(program: SourceFile, slangContext: SlangContext): 
   }
   C.pushR(H.alloc(program), H.alloc(CALL_MAIN))
 
-  return { C, S, E, B, H, A } as Context
-}
-
-export function evaluate(program: SourceFile, slangContext: SlangContext): Value {
-  const scheduler = new Scheduler(slangContext)
-  const mainRoutineCtx = initMainGoRoutineCtx(program, slangContext)
-
-  scheduler.spawn(mainRoutineCtx, true)
+  scheduler.spawn({ C, S, E, B, H, A } as Context, true)
   scheduler.run()
 
   return 'Program exited'
