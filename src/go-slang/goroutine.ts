@@ -135,12 +135,15 @@ const Interpreter: {
 } = {
   SourceFile: ({ topLevelDecls }: SourceFile, { C, H }) => C.pushR(...H.allocM(topLevelDecls)),
 
-  FunctionDeclaration: (funcDeclNode: FunctionDeclaration, { E, A }) =>
-    E.declare(funcDeclNode.id.name, {
-      type: CommandType.ClosureOp,
-      funcDeclNodeUid: A.track(funcDeclNode).uid,
-      envId: E.id()
-    } as ClosureOp),
+  FunctionDeclaration: (funcDeclNode: FunctionDeclaration, { E, H, A }) =>
+    E.declare(
+      funcDeclNode.id.name,
+      H.alloc({
+        type: CommandType.ClosureOp,
+        funcDeclNodeUid: A.track(funcDeclNode).uid,
+        envId: E.id()
+      } as ClosureOp)
+    ),
 
   Block: ({ statements }: Block, { C, E, H }) => {
     C.pushR(...H.allocM([...statements, { type: CommandType.EnvOp, envId: E.id() }]))
@@ -244,7 +247,7 @@ const Interpreter: {
 
   Identifier: ({ name, loc }: Identifier, { S, E, H }) => {
     const value = E.lookup(name)
-    return value === null ? Result.fail(new UndefinedError(name, loc!)) : S.push(H.alloc(value))
+    return value === null ? Result.fail(new UndefinedError(name, loc!)) : S.push(value)
   },
 
   UnaryExpression: ({ argument, operator: op }: UnaryExpression, { C, H, A }) =>
@@ -267,12 +270,12 @@ const Interpreter: {
 
   VarDeclOp: ({ idNodeUid, zeroValue }: VarDeclOp, { S, E, H, A }) => {
     const name = A.get<Identifier>(idNodeUid).name
-    zeroValue ? E.declareZeroValue(name) : E.declare(name, H.resolve(S.pop()))
+    zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop())
   },
 
   AssignOp: ({ idNodeUid }: AssignOp, { S, E, H, A }) => {
     const id = A.get<Identifier>(idNodeUid)
-    !E.assign(id.name, H.resolve(S.pop())) ? new UndefinedError(id.name, id.loc!) : void {}
+    !E.assign(id.name, S.pop()) ? new UndefinedError(id.name, id.loc!) : void {}
   },
 
   UnaryOp: ({ opNodeId }: UnaryOp, { C, S, H, A }) => {
@@ -313,7 +316,7 @@ const Interpreter: {
 
     C.pushR(...H.allocM([body, RetMarker(), { type: CommandType.EnvOp, envId: E.id() }]))
     // set the environment to the closure's environment
-    E.setId(envId).extend(Object.fromEntries(zip(paramNames, values)))
+    E.setId(envId).extend(Object.fromEntries(zip(paramNames, H.allocM(values))))
   },
 
   // TODO: should we combine it with CallOp? there is a couple of duplicated logic
@@ -338,7 +341,7 @@ const Interpreter: {
     const _S: Stash = new Stack()
     const _E = E.copy()
       .setId(envId)
-      .extend(Object.fromEntries(zip(paramNames, values)))
+      .extend(Object.fromEntries(zip(paramNames, H.allocM(values))))
 
     return void sched.spawn({ C: _C, S: _S, E: _E, B, H, A } as Context)
   },
