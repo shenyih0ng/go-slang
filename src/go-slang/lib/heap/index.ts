@@ -52,14 +52,14 @@ export class Heap {
   // NOTE: this is hacky and should be refactored
   private scheduler: Scheduler
 
-  constructor(astMap: AstMap, scheduler: Scheduler, n_words?: number) {
+  constructor(astMap: AstMap, scheduler: Scheduler, heapSize: number = DEFAULT_HEAP_SIZE) {
     this.astMap = astMap
     this.scheduler = scheduler
 
-    const totalBytes = (n_words ?? DEFAULT_HEAP_SIZE) * WORD_SIZE
-    this.memory = new DataView(new ArrayBuffer(totalBytes))
+    console.log(`[Heap]: Initializing heap with size ${heapSize} bytes.`) // DEBUG
+    this.memory = new DataView(new ArrayBuffer(heapSize))
 
-    const buddyAllocSize = Math.ceil(Math.log2(totalBytes))
+    const buddyAllocSize = Math.ceil(Math.log2(heapSize))
 
     this.buddyBlocks = Array.from({ length: buddyAllocSize + 1 }, () => new Set())
     // initialize the block with the maximum size (= size of the entire heap)
@@ -382,11 +382,14 @@ export class Heap {
         }
       }
 
+      let _totalFreedWords = 0 // DEBUG
       this.buddyBlockMap.forEach((_, addr) => {
         if (!activeHeapAddresses.has(addr) && this.tag(addr) !== PointerTag.AstNode) {
+          _totalFreedWords += this.size(addr) + 1
           this.buddyFree(addr)
         }
       })
+      console.log(`[Heap]: GC freed ${_totalFreedWords * WORD_SIZE} bytes of memory.`) // DEBUG
 
       // retry allocation
       alloc_heap_addr = this.buddyAlloc((size + 1) * WORD_SIZE)
