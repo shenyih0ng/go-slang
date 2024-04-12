@@ -69,6 +69,7 @@ SimpleStatement
     = SendStatement
     / ShortVariableDeclaration
     / Assignment
+    / IncDecStatement
     / ExpressionStatement
 
 ExpressionStatement
@@ -246,6 +247,24 @@ SendStatement
 
 Channel
     = Expression
+
+/* Increment/Decrement Statement */
+
+IncDecStatement
+    = expression:Expression _ op:("++" / "--") EOS {
+        return makeNode({ 
+                type: "Assignment", 
+                left: [ expression ], 
+                right: [
+                    makeNode({
+                        type: "BinaryExpression",
+                        operator: makeOperator(op == "++" ? "+" : "-"), 
+                        left: expression,
+                        right: buildLiteral(1)
+                    })
+                ]
+        })
+      }
 
 /* Variable Declaration */
 
