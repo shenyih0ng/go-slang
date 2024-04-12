@@ -51,7 +51,7 @@
     "**/gl": "^6.0.2"
   },
   "scripts": {
-    "prepare": "yarn build:slang",
+    "prepack": "yarn build:slang",
     "build": "yarn docs && yarn build:slang",
     "build:go": "peggy --cache --allowed-start-rules SourceFile src/go-slang/parser/*.pegjs",
     "build:slang": "yarn build:go && tsc --build --force",
