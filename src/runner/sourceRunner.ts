@@ -45,6 +45,7 @@ const DEFAULT_SOURCE_OPTIONS: Readonly<IOptions> = {
   executionMethod: 'auto',
   variant: Variant.DEFAULT,
   originalMaxExecTime: 1000,
+  heapSize: 32768,
   useSubst: false,
   isPrelude: false,
   throwInfiniteLoops: true,
