@@ -9,7 +9,7 @@ import { PREDECLARED_FUNCTIONS, PREDECLARED_IDENTIFIERS } from './lib/predeclare
 import { Scheduler } from './scheduler'
 import { BuiltinOp, CallExpression, Instruction, NodeType, SourceFile } from './types'
 
-export function evaluate(program: SourceFile, slangContext: SlangContext): Value {
+export function evaluate(program: SourceFile, heapSize: number, slangContext: SlangContext): Value {
   const scheduler = new Scheduler(slangContext)
 
   const C = new Stack<Instruction | HeapAddress>()
@@ -18,7 +18,7 @@ export function evaluate(program: SourceFile, slangContext: SlangContext): Value
   // `SourceFile` is the root node of the AST which has latest (monotonically increasing) uid of all AST nodes
   // Therefore, the next uid to be used to track AST nodes is the uid of SourceFile + 1
   const A = new AstMap((program.uid as number) + 1)
-  const H = new Heap(A, scheduler)
+  const H = new Heap(A, scheduler, heapSize)
 
   // inject predeclared functions into the global environment
   const B = new Map<number, (...args: any[]) => any>()

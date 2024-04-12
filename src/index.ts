@@ -50,6 +50,7 @@ export interface IOptions {
   executionMethod: ExecutionMethod
   variant: Variant
   originalMaxExecTime: number
+  heapSize: number
   useSubst: boolean
   isPrelude: boolean
   throwInfiniteLoops: boolean
@@ -234,7 +235,8 @@ export async function runFilesInContext(
     if (program === null) {
       return resolvedErrorPromise
     }
-    return goRunner(program, context)
+    const { heapSize } = options
+    return goRunner(program, heapSize!, context)
   }
 
   if (
