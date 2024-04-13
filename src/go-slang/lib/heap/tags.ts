@@ -16,4 +16,5 @@ export enum PointerTag {
   BufferedChannel,
   UnbufferedChannel,
   WaitGroup,
+  Mutex,
 }
