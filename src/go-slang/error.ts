@@ -49,6 +49,19 @@ export class UndefinedError extends RuntimeSourceError {
   }
 }
 
+export class AssignmentOperationError extends RuntimeSourceError {
+  public location: NodeLocation
+
+  constructor(location: NodeLocation) {
+    super()
+    this.location = location
+  }
+
+  public explain() {
+    return 'assigmment operation requires single-valued expressions on both sides'
+  }
+}
+
 export class FuncArityError extends RuntimeSourceError {
   private func_name: string
   private n_actual: number

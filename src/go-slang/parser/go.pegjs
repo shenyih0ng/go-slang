@@ -175,7 +175,11 @@ MultiplicativeExpression
       { return buildBinaryExpression(head, tail); }
 
 MultiplicativeOperator
-    = "*" 
+    = "<<"
+    / ">>"
+    / "&^"
+    / "&"
+    / "*" 
     / "/" 
     / "%" 
 
@@ -357,8 +361,8 @@ ContinueStatement
 /* Assignment */
 
 Assignment
-    = left:ExpressionList _ "=" _ right:ExpressionList EOS {
-        return makeNode({ type: "Assignment", left, right })
+    = left:ExpressionList _ op:(AdditiveOperator / MultiplicativeOperator)? "=" _ right:ExpressionList EOS {
+        return makeNode({ type: "Assignment", left, op: op && makeOperator(op), right })
       }
 
 IdentifierList
