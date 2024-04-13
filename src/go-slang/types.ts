@@ -195,7 +195,8 @@ export interface FunctionLiteral extends Node {
 }
 
 export enum NewType {
-  WaitGroup = 'sync.WaitGroup'
+  WaitGroup = 'sync.WaitGroup',
+  Mutex = 'sync.Mutex'
 }
 
 export enum MakeType {
@@ -271,6 +272,8 @@ export enum CommandType {
   WaitGroupAddOp = 'WaitGroupAddOp',
   WaitGroupDoneOp = 'WaitGroupDoneOp',
   WaitGroupWaitOp = 'WaitGroupWaitOp',
+  MutexLockOp = 'MutexLockOp',
+  MutexUnlockOp = 'MutexUnlockOp',
   BranchOp = 'BranchOp',
   EnvOp = 'EnvOp',
   PopSOp = 'PopSOp',
@@ -468,6 +471,10 @@ export function isNew(v: any): boolean {
 export interface NewWaitGroup extends New {
   type: NewType.WaitGroup
   count: number
+}
+
+export interface NewMutex extends New {
+  type: NewType.Mutex
 }
 
 

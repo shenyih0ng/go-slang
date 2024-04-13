@@ -12,7 +12,8 @@ export interface PredeclaredFunc {
 export const PREDECLARED_IDENTIFIERS: { [key: string]: any } = {
   true: true,
   false: false,
-  "sync.WaitGroup": NewType.WaitGroup
+  "sync.WaitGroup": NewType.WaitGroup,
+  "sync.Mutex": NewType.Mutex,
 }
 
 /**
@@ -81,10 +82,19 @@ function _new(...args: any): New | InvalidOperationError {
   if (type.value === NewType.WaitGroup) {
     if (args.length > 1) {
       return new InvalidOperationError(
-        `new(${NewType.WaitGroup}, ${args.slice(1).join(', ')}) expects 1 or 2 arguments; found ${args.length}`
+        `new(${NewType.WaitGroup}, ${args.slice(1).join(', ')}) expects 1 argument; found ${args.length}`
       )
     }
     return { type: NewType.WaitGroup, count: 0 } as NewWaitGroup
+  }
+
+  if (type.value === NewType.Mutex) {
+    if (args.length > 1) {
+      return new InvalidOperationError(
+        `new(${NewType.Mutex}, ${args.slice(1).join(', ')}) expects 1 arguments; found ${args.length}`
+      )
+    }
+    return { type: NewType.Mutex } as New
   }
 
   // NOTE: this should be unreachable
