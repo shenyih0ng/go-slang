@@ -9,7 +9,7 @@ import {
   UnknownInstructionError
 } from './error'
 import { AstMap } from './lib/astMap'
-import { evaluateBinaryOp, evaluateUnaryOp } from './lib/binaryOp'
+import { evaluateBinaryOp, evaluateUnaryOp } from './lib/operators'
 import { Environment } from './lib/env'
 import { Heap, HeapAddress } from './lib/heap'
 import { Result, isAny } from './lib/utils'
