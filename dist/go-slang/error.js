@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OutOfMemoryError = exports.DeadLockError = exports.GoExprMustBeFunctionCallError = exports.FuncArityError = exports.UndefinedError = exports.InvalidOperationError = exports.UnknownInstructionError = void 0;
+exports.OutOfMemoryError = exports.DeadLockError = exports.GoExprMustBeFunctionCallError = exports.FuncArityError = exports.AssignmentOperationError = exports.UndefinedError = exports.InvalidOperationError = exports.UnknownInstructionError = void 0;
 const runtimeSourceError_1 = require("../errors/runtimeSourceError");
 class UnknownInstructionError extends runtimeSourceError_1.RuntimeSourceError {
     constructor(inst_type) {
@@ -36,6 +36,16 @@ class UndefinedError extends runtimeSourceError_1.RuntimeSourceError {
     }
 }
 exports.UndefinedError = UndefinedError;
+class AssignmentOperationError extends runtimeSourceError_1.RuntimeSourceError {
+    constructor(location) {
+        super();
+        this.location = location;
+    }
+    explain() {
+        return 'assigmment operation requires single-valued expressions on both sides';
+    }
+}
+exports.AssignmentOperationError = AssignmentOperationError;
 class FuncArityError extends runtimeSourceError_1.RuntimeSourceError {
     constructor(func_name, n_actual, n_expected, location) {
         super();

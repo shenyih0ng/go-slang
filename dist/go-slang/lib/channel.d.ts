@@ -1,10 +1,11 @@
-declare class Channel {
+export declare class Channel {
     protected memory: DataView;
     constructor(memory: DataView);
     protected get maxBufSize(): number;
     protected getSlotAddr(slotIdx: number): number;
     protected getSlotValue(slotIdx: number): number;
     protected setSlotValue(slotIdx: number, value: number): void;
+    addr(): number;
 }
 export declare class UnbufferedChannel extends Channel {
     static RECV_ID_OFFSET: number;
@@ -14,6 +15,7 @@ export declare class UnbufferedChannel extends Channel {
     constructor(memory: DataView);
     send(routineId: number, value: any): boolean;
     recv(routineId: number): number | null;
+    toString(): string;
     private hasSender;
     private hasReceiver;
     private get recvId();
@@ -31,6 +33,7 @@ export declare class BufferedChannel extends Channel {
     constructor(memory: DataView);
     send(value: any): boolean;
     recv(): number | null;
+    toString(): string;
     isBufferFull(): boolean;
     isBufferEmpty(): boolean;
     private get readIdx();
@@ -40,4 +43,3 @@ export declare class BufferedChannel extends Channel {
     private get bufSize();
     private set bufSize(value);
 }
-export {};

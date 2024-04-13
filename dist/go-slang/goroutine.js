@@ -5,7 +5,7 @@ const lodash_1 = require("lodash");
 const utils_1 = require("../cse-machine/utils");
 const runtimeSourceError_1 = require("../errors/runtimeSourceError");
 const error_1 = require("./error");
-const binaryOp_1 = require("./lib/binaryOp");
+const operators_1 = require("./lib/operators");
 const utils_2 = require("./lib/utils");
 const types_1 = require("./types");
 const channel_1 = require("./lib/channel");
@@ -111,10 +111,21 @@ const Interpreter = {
             : // assume: left.length === right.length
                 C.pushR(...H.allocM(right), ...H.allocM(decls.reverse()));
     },
-    Assignment: ({ left, right }, { C, H, A }) => {
+    Assignment: ({ left, op, right }, { C, H, A }) => {
         const ids = left; // assume: left is always an array of identifiers
         const asgmts = ids.map(id => ({ type: types_1.CommandType.AssignOp, idNodeUid: A.track(id).uid }));
-        C.pushR(...H.allocM(right), ...H.allocM(asgmts.reverse()));
+        const asgmts_alloc = H.allocM(asgmts.reverse());
+        // assignment
+        if (!op) {
+            return C.pushR(...H.allocM(right), ...asgmts_alloc);
+        }
+        // assignment operation
+        if (left.length !== 1 || right.length !== 1) {
+            return utils_2.Result.fail(new error_1.AssignmentOperationError(op.loc));
+        }
+        C.pushR(...H.allocM((0, lodash_1.zip)(left, right)
+            .map(([l, r]) => [l, r, { type: types_1.CommandType.BinaryOp, opNodeId: A.track(op).uid }])
+            .flat()), ...asgmts_alloc);
     },
     GoStatement: ({ call, loc }, { C, H, A }) => {
         if (call.type !== types_1.NodeType.CallExpression) {
@@ -166,11 +177,20 @@ const Interpreter = {
             return C.push((0, types_1.ChanRecv)());
         } // prettier-ignore
         const operand = H.resolve(S.pop());
-        return S.push(H.alloc(operator === '-' ? -operand : operand));
+        const result = (0, operators_1.evaluateUnaryOp)(operator, operand);
+        if (result.isSuccess) {
+            return S.push(H.alloc(result.unwrap()));
+        }
+        return result;
     },
     BinaryOp: ({ opNodeId }, { S, H, A }) => {
         const [left, right] = H.resolveM(S.popNR(2));
-        S.push(H.alloc((0, binaryOp_1.evaluateBinaryOp)(A.get(opNodeId).op, left, right)));
+        const operator = A.get(opNodeId).op;
+        const result = (0, operators_1.evaluateBinaryOp)(operator, left, right);
+        if (result.isSuccess) {
+            return S.push(H.alloc(result.unwrap()));
+        }
+        return result;
     },
     CallOp: ({ calleeNodeId, arity }, { C, S, E, B, H, A }) => {
         const values = H.resolveM(S.popNR(arity));

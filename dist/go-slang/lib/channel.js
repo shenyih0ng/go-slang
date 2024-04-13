@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BufferedChannel = exports.UnbufferedChannel = void 0;
+exports.BufferedChannel = exports.UnbufferedChannel = exports.Channel = void 0;
 const config_1 = require("./heap/config");
 /* prettier-ignore */
 class Channel {
@@ -9,7 +9,9 @@ class Channel {
     getSlotAddr(slotIdx) { return (slotIdx + 1) * config_1.WORD_SIZE; }
     getSlotValue(slotIdx) { return this.memory.getFloat64(this.getSlotAddr(slotIdx)); }
     setSlotValue(slotIdx, value) { this.memory.setFloat64(this.getSlotAddr(slotIdx), value); }
+    addr() { return this.memory.byteOffset; }
 }
+exports.Channel = Channel;
 class UnbufferedChannel extends Channel {
     constructor(memory) { super(memory); } // prettier-ignore
     send(routineId, value) {
@@ -86,6 +88,9 @@ class UnbufferedChannel extends Channel {
             return null;
         }
     }
+    toString() {
+        return `UnbufferedChan(addr=0x${this.addr().toString(16)})`;
+    }
     hasSender() { return this.sendId !== UnbufferedChannel.NULL_ID; } // prettier-ignore
     hasReceiver() { return this.recvId !== UnbufferedChannel.NULL_ID; } // prettier-ignore
     get recvId() {
@@ -136,6 +141,9 @@ class BufferedChannel extends Channel {
         const value = this.getSlotValue(this.readIdx++ % this.maxBufSize);
         this.bufSize--;
         return value;
+    }
+    toString() {
+        return `BufferedChan(addr=0x${this.addr().toString(16)})`;
     }
     isBufferFull() {
         return this.bufSize === this.maxBufSize;

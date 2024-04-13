@@ -18,6 +18,11 @@ export declare class UndefinedError extends RuntimeSourceError {
     constructor(identifier: string, location: NodeLocation);
     explain(): string;
 }
+export declare class AssignmentOperationError extends RuntimeSourceError {
+    location: NodeLocation;
+    constructor(location: NodeLocation);
+    explain(): string;
+}
 export declare class FuncArityError extends RuntimeSourceError {
     private func_name;
     private n_actual;
