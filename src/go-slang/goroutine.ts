@@ -70,6 +70,7 @@ import { Scheduler } from './scheduler'
 import { PredeclaredFuncT } from './lib/predeclared'
 import { BufferedChannel, UnbufferedChannel } from './lib/channel'
 import { WaitGroup } from './lib/waitgroup'
+import { Mutex } from './lib/mutex'
 
 export type Control = Stack<Instruction | HeapAddress>
 export type Stash = Stack<HeapAddress | any>
@@ -324,6 +325,20 @@ const Interpreter: {
       return C.push(action);
       
     }
+
+    if (className instanceof Mutex) {
+      const methodActions = {
+        'Lock': () => ({ type: CommandType.MutexLockOp }),
+        'Unlock': () => ({ type: CommandType.MutexUnlockOp })
+      };
+  
+      const action = methodActions[callee.method.name]();
+      if (!action) { return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!)); }
+      
+      const mutexHeapAddress = E.lookup(callee.pkg.name);
+      S.push(mutexHeapAddress);
+      return C.push(action);
+    }
   
     // Should be unreachable
     return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!));
@@ -490,6 +505,23 @@ const Interpreter: {
       C.push(inst)
       return Result.ok(GoRoutineState.Blocked)
     }
+    return void S.pop()
+  },
+
+  MutexLockOp: (_inst, { C, S, H }) => {
+    const mutex = H.resolve(S.peek()) as Mutex
+    if (mutex.isLocked()) {
+      C.push(_inst)
+      return Result.ok(GoRoutineState.Blocked)
+    }
+
+    mutex.lock()
+    return void S.pop()
+  },
+
+  MutexUnlockOp: (_inst, { S, H }) => {
+    const mutex = H.resolve(S.peek()) as Mutex
+    mutex.unlock()
     return void S.pop()
   },
 
