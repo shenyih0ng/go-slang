@@ -164,6 +164,7 @@ export const EmptyStmt: EmptyStatement = { type: NodeType.EmptyStatement }
 export interface Assignment extends Node {
   type: NodeType.Assignment
   left: Expression[]
+  op: Operator | null
   right: Expression[]
 }
 
@@ -198,7 +199,7 @@ export function isTypeLiteral(v: any): v is TypeLiteral {
   return v && v.type === NodeType.TypeLiteral
 }
 
-export type UnaryOperator = '+' | '-' | '<-'
+export type UnaryOperator = '+' | '-' | '!' | '^' | '<-'
 
 export type BinaryOperator =
   | '+'
@@ -214,6 +215,12 @@ export type BinaryOperator =
   | '<='
   | '>'
   | '>='
+  | '<<'
+  | '>>'
+  | '&'
+  | '&^'
+  | '&&'
+  | '||'
 
 export interface Operator extends Node {
   type: NodeType.Operator

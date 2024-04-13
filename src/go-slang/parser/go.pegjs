@@ -69,6 +69,7 @@ SimpleStatement
     = SendStatement
     / ShortVariableDeclaration
     / Assignment
+    / IncDecStatement
     / ExpressionStatement
 
 ExpressionStatement
@@ -77,7 +78,7 @@ ExpressionStatement
      }
 
 Expression
-    = RelationalExpression
+    = LogicalOrExpression
 
 PrimaryExpression
     = Identifier
@@ -164,8 +165,10 @@ UnaryExpression
  	  }
  
 UnaryOperator
-    = "+" 
+    = "+"
     / "-"
+    / "!"
+    / "^"
     / "<-"
 
 MultiplicativeExpression
@@ -174,7 +177,11 @@ MultiplicativeExpression
       { return buildBinaryExpression(head, tail); }
 
 MultiplicativeOperator
-    = "*" 
+    = "<<"
+    / ">>"
+    / "&^"
+    / "&"
+    / "*" 
     / "/" 
     / "%" 
 
@@ -201,6 +208,16 @@ RelationalOperator
     / "<"
     / ">="
     / ">"
+
+LogicalAndExpression
+    = head:RelationalExpression
+      tail:(__ "&&" __ RelationalExpression)*
+      { return buildBinaryExpression(head, tail); }
+
+LogicalOrExpression
+    = head:LogicalAndExpression
+      tail:(__ "||" __ LogicalAndExpression)*
+      { return buildBinaryExpression(head, tail); }
 
 CallExpression
     = callee:PrimaryExpression "(" args:ExpressionList? ")" {
@@ -246,6 +263,24 @@ SendStatement
 
 Channel
     = Expression
+
+/* Increment/Decrement Statement */
+
+IncDecStatement
+    = expression:Expression _ op:("++" / "--") EOS {
+        return makeNode({ 
+                type: "Assignment", 
+                left: [ expression ], 
+                right: [
+                    makeNode({
+                        type: "BinaryExpression",
+                        operator: makeOperator(op == "++" ? "+" : "-"), 
+                        left: expression,
+                        right: buildLiteral(1)
+                    })
+                ]
+        })
+      }
 
 /* Variable Declaration */
 
@@ -338,8 +373,8 @@ ContinueStatement
 /* Assignment */
 
 Assignment
-    = left:ExpressionList _ "=" _ right:ExpressionList EOS {
-        return makeNode({ type: "Assignment", left, right })
+    = left:ExpressionList _ op:(AdditiveOperator / MultiplicativeOperator)? "=" _ right:ExpressionList EOS {
+        return makeNode({ type: "Assignment", left, op: op && makeOperator(op), right })
       }
 
 IdentifierList

@@ -1,7 +1,7 @@
 import { WORD_SIZE } from './heap/config'
 
 /* prettier-ignore */
-class Channel {
+export class Channel {
   protected memory: DataView
 
   constructor(memory: DataView) { this.memory = memory }
@@ -13,6 +13,8 @@ class Channel {
   protected getSlotValue(slotIdx: number): number { return this.memory.getFloat64(this.getSlotAddr(slotIdx)) }
 
   protected setSlotValue(slotIdx: number, value: number): void { this.memory.setFloat64(this.getSlotAddr(slotIdx), value) }
+
+  public addr(): number { return this.memory.byteOffset }
 }
 
 export class UnbufferedChannel extends Channel {
@@ -105,6 +107,10 @@ export class UnbufferedChannel extends Channel {
     }
   }
 
+  public toString(): string {
+    return `UnbufferedChan(addr=0x${this.addr().toString(16)})`
+  }
+
   private hasSender(): boolean { return this.sendId !== UnbufferedChannel.NULL_ID } // prettier-ignore
 
   private hasReceiver(): boolean { return this.recvId !== UnbufferedChannel.NULL_ID } // prettier-ignore
@@ -165,6 +171,10 @@ export class BufferedChannel extends Channel {
     this.bufSize--
 
     return value
+  }
+
+  public toString(): string {
+    return `BufferedChan(addr=0x${this.addr().toString(16)})`
   }
 
   public isBufferFull(): boolean {
