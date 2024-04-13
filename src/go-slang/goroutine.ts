@@ -310,7 +310,6 @@ const Interpreter: {
     }
   
     if (className instanceof WaitGroup) {
-      console.log(args)
       const methodActions = {
         'Add': () => ({ type: CommandType.WaitGroupAddOp, count: (args[0] as Literal).value }),
         'Done': () => ({ type: CommandType.WaitGroupDoneOp }),
