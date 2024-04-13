@@ -219,6 +219,8 @@ export type BinaryOperator =
   | '>>'
   | '&'
   | '&^'
+  | '&&'
+  | '||'
 
 export interface Operator extends Node {
   type: NodeType.Operator

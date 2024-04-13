@@ -78,7 +78,7 @@ ExpressionStatement
      }
 
 Expression
-    = RelationalExpression
+    = LogicalOrExpression
 
 PrimaryExpression
     = Identifier
@@ -206,6 +206,16 @@ RelationalOperator
     / "<"
     / ">="
     / ">"
+
+LogicalAndExpression
+    = head:RelationalExpression
+      tail:(__ "&&" __ RelationalExpression)*
+      { return buildBinaryExpression(head, tail); }
+
+LogicalOrExpression
+    = head:LogicalAndExpression
+      tail:(__ "||" __ LogicalAndExpression)*
+      { return buildBinaryExpression(head, tail); }
 
 CallExpression
     = callee:PrimaryExpression "(" args:ExpressionList? ")" {
