@@ -164,6 +164,7 @@ export const EmptyStmt: EmptyStatement = { type: NodeType.EmptyStatement }
 export interface Assignment extends Node {
   type: NodeType.Assignment
   left: Expression[]
+  op: Operator | null
   right: Expression[]
 }
 
@@ -214,6 +215,10 @@ export type BinaryOperator =
   | '<='
   | '>'
   | '>='
+  | '<<'
+  | '>>'
+  | '&'
+  | '&^'
 
 export interface Operator extends Node {
   type: NodeType.Operator
