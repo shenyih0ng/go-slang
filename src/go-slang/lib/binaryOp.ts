@@ -32,8 +32,20 @@ function evaluateBitwiseOp(operator: BinaryOperator, left: any, right: any): any
     case '|':
       result = left | right
       break
+    case '&':
+      result = left & right
+      break
     case '^':
       result = left ^ right
+      break
+    case '&^':
+      result = left & ~right
+      break
+    case '<<':
+      result = left << right
+      break
+    case '>>':
+      result = left >> right
       break
   }
 
@@ -79,7 +91,11 @@ export function evaluateBinaryOp(operator: BinaryOperator, left: any, right: any
       result = evaluateArthmeticOp(operator, left, right)
       break
     case '|':
+    case '&':
     case '^':
+    case '&^':
+    case '<<':
+    case '>>':
       result = evaluateBitwiseOp(operator, left, right)
       break
     case '==':
