@@ -9,7 +9,7 @@ import {
   UnknownInstructionError
 } from './error'
 import { AstMap } from './lib/astMap'
-import { evaluateBinaryOp } from './lib/binaryOp'
+import { evaluateBinaryOp, evaluateUnaryOp } from './lib/binaryOp'
 import { Environment } from './lib/env'
 import { Heap, HeapAddress } from './lib/heap'
 import { Result, isAny } from './lib/utils'
@@ -59,6 +59,7 @@ import {
   TypeLiteral,
   UnaryExpression,
   UnaryOp,
+  UnaryOperator,
   VarDeclOp,
   VariableDeclaration
 } from './types'
@@ -315,17 +316,27 @@ const Interpreter: {
   },
 
   UnaryOp: ({ opNodeId }: UnaryOp, { C, S, H, A }) => {
-    const operator = A.get<Operator>(opNodeId).op
+    const operator = A.get<Operator>(opNodeId).op as UnaryOperator
 
     if (operator === '<-') { return C.push(ChanRecv()) } // prettier-ignore
 
     const operand = H.resolve(S.pop())
-    return S.push(H.alloc(operator === '-' ? -operand : operand))
+    const result = evaluateUnaryOp(operator, operand)
+    if (result.isSuccess) {
+      return S.push(H.alloc(result.unwrap()))
+    }
+    return result
   },
 
   BinaryOp: ({ opNodeId }: BinaryOp, { S, H, A }) => {
     const [left, right] = H.resolveM(S.popNR(2))
-    S.push(H.alloc(evaluateBinaryOp(A.get<Operator>(opNodeId).op as BinaryOperator, left, right)))
+
+    const operator = A.get<Operator>(opNodeId).op as BinaryOperator
+    const result = evaluateBinaryOp(operator, left, right)
+    if (result.isSuccess) {
+      return S.push(H.alloc(result.unwrap()))
+    }
+    return result
   },
 
   CallOp: ({ calleeNodeId, arity }: CallOp, { C, S, E, B, H, A }) => {
