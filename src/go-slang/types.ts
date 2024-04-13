@@ -211,7 +211,7 @@ export function isTypeLiteral(v: any): v is TypeLiteral {
   return v && v.type === NodeType.TypeLiteral
 }
 
-export type UnaryOperator = '+' | '-' | '<-'
+export type UnaryOperator = '+' | '-' | '!' | '^' | '<-'
 
 export type BinaryOperator =
   | '+'
