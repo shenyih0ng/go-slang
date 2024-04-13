@@ -165,8 +165,10 @@ UnaryExpression
  	  }
  
 UnaryOperator
-    = "+" 
+    = "+"
     / "-"
+    / "!"
+    / "^"
     / "<-"
 
 MultiplicativeExpression
