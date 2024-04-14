@@ -5,6 +5,7 @@ import {
   AssignmentOperationError,
   FuncArityError,
   GoExprMustBeFunctionCallError,
+  InvalidOperationError,
   UndefinedError,
   UnknownInstructionError
 } from './error'
@@ -143,7 +144,6 @@ export class GoRoutine {
 
       return nextState
     } catch (error) {
-      console.log(error)
       this.state = GoRoutineState.Exited
       return Result.fail(error)
     }
@@ -479,7 +479,7 @@ const Interpreter: {
 
   WaitGroupDoneOp: (_inst: WaitGroupDoneOp, { S, H }) => {
     const wg = H.resolve(S.peek()) as WaitGroup
-    wg.done()
+    if (wg.done() < 0) { return Result.fail(new InvalidOperationError("WaitGroup cannot fall below zero")) }
     return void S.pop()
   },
 

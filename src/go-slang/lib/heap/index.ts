@@ -260,7 +260,7 @@ export class Heap {
         )
         return new BufferedChannel(chanMemRegion)
       case PointerTag.WaitGroup:
-        return new WaitGroup(new DataView(this.memory.buffer, heap_addr, WORD_SIZE * 2))
+        return new WaitGroup(new DataView(this.memory.buffer, heap_addr, WORD_SIZE))
     }
   }
 
@@ -373,11 +373,11 @@ export class Heap {
     return ptr_heap_addr
   }
   /* Memory Layout of a WaitGroup: 
-   * [0-7:tag][0-7:count] (2 words) 
+   * [0:tag, 1-4:count, 5-7:_unused] (1 word) 
    */
   public allocateWaitGroup(): HeapAddress {
-    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.WaitGroup, 2)
-    this.memory.setFloat64(ptr_heap_addr + WORD_SIZE, 0) // initialize count to 0
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.WaitGroup)
+    this.memory.setFloat32(ptr_heap_addr + 1, 0) // initialize count to 0
     
     return ptr_heap_addr
   }
