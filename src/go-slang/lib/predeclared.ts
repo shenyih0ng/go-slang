@@ -1,5 +1,15 @@
 import { InvalidOperationError } from '../error'
-import { BuiltinOp, CommandType, Make, MakeChannel, New, NewType, NewWaitGroup, MakeType, isTypeLiteral } from '../types'
+import {
+  BuiltinOp,
+  CommandType,
+  Make,
+  MakeChannel,
+  New,
+  NewType,
+  NewWaitGroup,
+  MakeType,
+  isTypeLiteral
+} from '../types'
 
 export type PredeclaredFuncT = (...args: any) => any
 
@@ -12,7 +22,7 @@ export interface PredeclaredFunc {
 export const PREDECLARED_IDENTIFIERS: { [key: string]: any } = {
   true: true,
   false: false,
-  "sync.WaitGroup": NewType.WaitGroup
+  'sync.WaitGroup': NewType.WaitGroup
 }
 
 /**
@@ -106,5 +116,5 @@ export const PREDECLARED_FUNCTIONS: PredeclaredFunc[] = [
     name: 'new',
     func: _new,
     op: { type: CommandType.BuiltinOp, arity: 1 }
-  },
+  }
 ]

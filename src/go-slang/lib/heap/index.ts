@@ -372,13 +372,13 @@ export class Heap {
     this.memory.setUint8(ptr_heap_addr + 3, 0) // initialize buffer size to 0
     return ptr_heap_addr
   }
-  /* Memory Layout of a WaitGroup: 
-   * [0:tag, 1-4:count, 5-7:_unused] (1 word) 
+  /* Memory Layout of a WaitGroup:
+   * [0:tag, 1-4:count, 5-7:_unused] (1 word)
    */
   public allocateWaitGroup(): HeapAddress {
     const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.WaitGroup)
     this.memory.setFloat32(ptr_heap_addr + 1, 0) // initialize count to 0
-    
+
     return ptr_heap_addr
   }
 
