@@ -5,6 +5,7 @@ import {
   AssignmentOperationError,
   FuncArityError,
   GoExprMustBeFunctionCallError,
+  InternalError,
   InvalidOperationError,
   UndefinedError,
   UnknownInstructionError
@@ -146,7 +147,9 @@ export class GoRoutine {
       return nextState
     } catch (error) {
       this.state = GoRoutineState.Exited
-      return Result.fail(error)
+      return Result.fail(
+        error instanceof RuntimeSourceError ? error : new InternalError(error.message)
+      )
     }
   }
 }
