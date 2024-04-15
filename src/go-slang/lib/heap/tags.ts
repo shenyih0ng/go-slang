@@ -14,5 +14,7 @@ export enum PointerTag {
   EnvOp,
   PopSOp,
   BufferedChannel,
-  UnbufferedChannel
+  UnbufferedChannel,
+  WaitGroup,
+  Mutex
 }
