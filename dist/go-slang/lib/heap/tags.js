@@ -19,5 +19,7 @@ var PointerTag;
     PointerTag[PointerTag["PopSOp"] = 13] = "PopSOp";
     PointerTag[PointerTag["BufferedChannel"] = 14] = "BufferedChannel";
     PointerTag[PointerTag["UnbufferedChannel"] = 15] = "UnbufferedChannel";
+    PointerTag[PointerTag["WaitGroup"] = 16] = "WaitGroup";
+    PointerTag[PointerTag["Mutex"] = 17] = "Mutex";
 })(PointerTag = exports.PointerTag || (exports.PointerTag = {}));
 //# sourceMappingURL=tags.js.map

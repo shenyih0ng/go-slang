@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isMake = exports.ForEndMarker = exports.ForPostMarker = exports.ForStartMarker = exports.RetMarker = exports.MarkerType = exports.PopTillM = exports.PopS = exports.ChanSend = exports.ChanRecv = exports.isCommand = exports.CommandType = exports.isTypeLiteral = exports.Type = exports.True = exports.EmptyStmt = exports.ForFormType = exports.isNode = exports.NodeType = void 0;
+exports.isNew = exports.isMake = exports.ForEndMarker = exports.ForPostMarker = exports.ForStartMarker = exports.RetMarker = exports.MarkerType = exports.PopTillM = exports.PopS = exports.WaitGroupWait = exports.WaitGroupDone = exports.WaitGroupAdd = exports.ChanSend = exports.ChanRecv = exports.isCommand = exports.CommandType = exports.isTypeLiteral = exports.MakeType = exports.NewType = exports.True = exports.EmptyStmt = exports.ForFormType = exports.isNode = exports.NodeType = void 0;
 var NodeType;
 (function (NodeType) {
     NodeType["SourceFile"] = "SourceFile";
@@ -21,6 +21,7 @@ var NodeType;
     NodeType["UnaryExpression"] = "UnaryExpression";
     NodeType["BinaryExpression"] = "BinaryExpression";
     NodeType["Identifier"] = "Identifier";
+    NodeType["QualifiedIdentifier"] = "QualifiedIdentifier";
     NodeType["Literal"] = "Literal";
     NodeType["FunctionLiteral"] = "FunctionLiteral";
     NodeType["TypeLiteral"] = "TypeLiteral";
@@ -37,10 +38,15 @@ var ForFormType;
 })(ForFormType = exports.ForFormType || (exports.ForFormType = {}));
 exports.EmptyStmt = { type: NodeType.EmptyStatement };
 exports.True = { type: NodeType.Literal, value: true };
-var Type;
-(function (Type) {
-    Type["Channel"] = "chan";
-})(Type = exports.Type || (exports.Type = {}));
+var NewType;
+(function (NewType) {
+    NewType["WaitGroup"] = "sync.WaitGroup";
+    NewType["Mutex"] = "sync.Mutex";
+})(NewType = exports.NewType || (exports.NewType = {}));
+var MakeType;
+(function (MakeType) {
+    MakeType["Channel"] = "chan";
+})(MakeType = exports.MakeType || (exports.MakeType = {}));
 function isTypeLiteral(v) {
     return v && v.type === NodeType.TypeLiteral;
 }
@@ -56,6 +62,11 @@ var CommandType;
     CommandType["GoRoutineOp"] = "GoRoutineOp";
     CommandType["ChanRecvOp"] = "ChanRecvOp";
     CommandType["ChanSendOp"] = "ChanSendOp";
+    CommandType["WaitGroupAddOp"] = "WaitGroupAddOp";
+    CommandType["WaitGroupDoneOp"] = "WaitGroupDoneOp";
+    CommandType["WaitGroupWaitOp"] = "WaitGroupWaitOp";
+    CommandType["MutexLockOp"] = "MutexLockOp";
+    CommandType["MutexUnlockOp"] = "MutexUnlockOp";
     CommandType["BranchOp"] = "BranchOp";
     CommandType["EnvOp"] = "EnvOp";
     CommandType["PopSOp"] = "PopSOp";
@@ -70,6 +81,12 @@ const ChanRecv = () => ({ type: CommandType.ChanRecvOp });
 exports.ChanRecv = ChanRecv;
 const ChanSend = () => ({ type: CommandType.ChanSendOp });
 exports.ChanSend = ChanSend;
+const WaitGroupAdd = () => ({ type: CommandType.WaitGroupAddOp });
+exports.WaitGroupAdd = WaitGroupAdd;
+const WaitGroupDone = () => ({ type: CommandType.WaitGroupDoneOp });
+exports.WaitGroupDone = WaitGroupDone;
+const WaitGroupWait = () => ({ type: CommandType.WaitGroupWaitOp });
+exports.WaitGroupWait = WaitGroupWait;
 exports.PopS = { type: CommandType.PopSOp };
 const PopTillM = (...markers) => ({
     type: CommandType.PopTillMOp,
@@ -92,7 +109,11 @@ exports.ForPostMarker = ForPostMarker;
 const ForEndMarker = () => ({ type: MarkerType.ForEndMarker });
 exports.ForEndMarker = ForEndMarker;
 function isMake(v) {
-    return v && v.type && Object.values(Type).includes(v.type);
+    return v && v.type && Object.values(MakeType).includes(v.type);
 }
 exports.isMake = isMake;
+function isNew(v) {
+    return v && v.type && Object.values(NewType).includes(v.type);
+}
+exports.isNew = isNew;
 //# sourceMappingURL=types.js.map

@@ -9,6 +9,8 @@ const operators_1 = require("./lib/operators");
 const utils_2 = require("./lib/utils");
 const types_1 = require("./types");
 const channel_1 = require("./lib/channel");
+const waitgroup_1 = require("./lib/waitgroup");
+const mutex_1 = require("./lib/mutex");
 var GoRoutineState;
 (function (GoRoutineState) {
     GoRoutineState[GoRoutineState["Running"] = 0] = "Running";
@@ -157,11 +159,50 @@ const Interpreter = {
     },
     UnaryExpression: ({ argument, operator: op }, { C, H, A }) => C.pushR(...H.allocM([argument, { type: types_1.CommandType.UnaryOp, opNodeId: A.track(op).uid }])),
     BinaryExpression: ({ left, right, operator: op }, { C, H, A }) => C.pushR(...H.allocM([left, right, { type: types_1.CommandType.BinaryOp, opNodeId: A.track(op).uid }])),
-    CallExpression: ({ callee, args }, { C, H, A }) => C.pushR(...H.allocM([
-        callee,
-        ...args,
-        { type: types_1.CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }
-    ])),
+    CallExpression: ({ callee, args }, { C, E, S, H, A }) => {
+        var _a, _b;
+        if (callee.type !== types_1.NodeType.QualifiedIdentifier) {
+            C.pushR(...H.allocM([
+                callee,
+                ...args,
+                { type: types_1.CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }
+            ]));
+            return;
+        }
+        const className = H.resolve(E.lookup(callee.pkg.name));
+        if (className === null) {
+            return utils_2.Result.fail(new error_1.UndefinedError(callee.pkg.name, callee.loc));
+        }
+        if (className instanceof waitgroup_1.WaitGroup) {
+            const methodActions = {
+                Add: () => ({ type: types_1.CommandType.WaitGroupAddOp, count: args[0].value }),
+                Done: () => ({ type: types_1.CommandType.WaitGroupDoneOp }),
+                Wait: () => ({ type: types_1.CommandType.WaitGroupWaitOp })
+            };
+            const action = (_a = methodActions[callee.method.name]) === null || _a === void 0 ? void 0 : _a.call(methodActions);
+            if (!action) {
+                return utils_2.Result.fail(new error_1.UndefinedError(callee.method.name, callee.method.loc));
+            }
+            const waitGroupHeapAddress = E.lookup(callee.pkg.name);
+            S.push(waitGroupHeapAddress);
+            return C.push(action);
+        }
+        if (className instanceof mutex_1.Mutex) {
+            const methodActions = {
+                Lock: () => ({ type: types_1.CommandType.MutexLockOp }),
+                Unlock: () => ({ type: types_1.CommandType.MutexUnlockOp })
+            };
+            const action = (_b = methodActions[callee.method.name]) === null || _b === void 0 ? void 0 : _b.call(methodActions);
+            if (!action) {
+                return utils_2.Result.fail(new error_1.UndefinedError(callee.method.name, callee.method.loc));
+            }
+            const mutexHeapAddress = E.lookup(callee.pkg.name);
+            S.push(mutexHeapAddress);
+            return C.push(action);
+        }
+        // Should be unreachable
+        return utils_2.Result.fail(new error_1.UndefinedError(callee.method.name, callee.method.loc));
+    },
     ExpressionStatement: ({ expression }, { C, H }) => C.pushR(...H.allocM([expression, types_1.PopS])),
     VarDeclOp: ({ idNodeUid, zeroValue }, { S, E, H, A }) => {
         const name = A.get(idNodeUid).name;
@@ -275,6 +316,41 @@ const Interpreter = {
         }
         // NOTE: this should be unreachable
         return;
+    },
+    WaitGroupAddOp: (inst, { S, H }) => {
+        const wg = H.resolve(S.peek());
+        wg.add(inst.count);
+        return void S.pop();
+    },
+    WaitGroupDoneOp: (_inst, { S, H }) => {
+        const wg = H.resolve(S.peek());
+        if (wg.done() < 0) {
+            return utils_2.Result.fail(new error_1.InvalidOperationError('WaitGroup cannot fall below zero'));
+        }
+        return void S.pop();
+    },
+    WaitGroupWaitOp: (inst, { C, S, H }) => {
+        const wg = H.resolve(S.peek());
+        // if the count is not zero, we have to wait again
+        if (wg.wait()) {
+            C.push(inst);
+            return utils_2.Result.ok(GoRoutineState.Blocked);
+        }
+        return void S.pop();
+    },
+    MutexLockOp: (_inst, { C, S, H }) => {
+        const mutex = H.resolve(S.peek());
+        if (mutex.isLocked()) {
+            C.push(_inst);
+            return utils_2.Result.ok(GoRoutineState.Blocked);
+        }
+        mutex.lock();
+        return void S.pop();
+    },
+    MutexUnlockOp: (_inst, { S, H }) => {
+        const mutex = H.resolve(S.peek());
+        mutex.unlock();
+        return void S.pop();
     },
     BranchOp: ({ cons, alt }, { S, C, H }) => void (H.resolve(S.pop()) ? C.pushR(H.alloc(cons)) : alt && C.pushR(H.alloc(alt))),
     EnvOp: ({ envId }, { E }) => void E.setId(envId),

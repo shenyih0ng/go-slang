@@ -17,6 +17,7 @@ export declare enum NodeType {
     UnaryExpression = "UnaryExpression",
     BinaryExpression = "BinaryExpression",
     Identifier = "Identifier",
+    QualifiedIdentifier = "QualifiedIdentifier",
     Literal = "Literal",
     FunctionLiteral = "FunctionLiteral",
     TypeLiteral = "TypeLiteral",
@@ -26,7 +27,7 @@ type TopLevelDeclaration = Declaration | FunctionDeclaration;
 type Declaration = VariableDeclaration;
 type Statement = Declaration | ReturnStatement | IfStatement | ForStatement | BreakStatement | ContinueStatement | Block | SimpleStatement | GoStatement | EmptyStatement;
 type SimpleStatement = ExpressionStatement | Assignment | Declaration;
-type Expression = Identifier | Literal | FunctionLiteral | UnaryExpression | BinaryExpression | CallExpression;
+type Expression = Identifier | QualifiedIdentifier | Literal | FunctionLiteral | UnaryExpression | BinaryExpression | CallExpression;
 interface Position {
     line: number;
     column: number;
@@ -126,6 +127,11 @@ export interface Identifier extends Node {
     type: NodeType.Identifier;
     name: string;
 }
+export interface QualifiedIdentifier extends Node {
+    type: NodeType.QualifiedIdentifier;
+    pkg: Identifier;
+    method: Identifier;
+}
 export interface Literal extends Node {
     type: NodeType.Literal;
     value: any;
@@ -136,12 +142,16 @@ export interface FunctionLiteral extends Node {
     params: Identifier[];
     body: Block;
 }
-export declare enum Type {
+export declare enum NewType {
+    WaitGroup = "sync.WaitGroup",
+    Mutex = "sync.Mutex"
+}
+export declare enum MakeType {
     Channel = "chan"
 }
 export interface TypeLiteral extends Node {
     type: NodeType.TypeLiteral;
-    value: Type;
+    value: NewType | MakeType;
 }
 export declare function isTypeLiteral(v: any): v is TypeLiteral;
 export type UnaryOperator = '+' | '-' | '!' | '^' | '<-';
@@ -163,7 +173,7 @@ export interface BinaryExpression extends Node {
 }
 export interface CallExpression extends Node {
     type: NodeType.CallExpression;
-    callee: Identifier | FunctionLiteral;
+    callee: QualifiedIdentifier | Identifier | FunctionLiteral;
     args: Expression[];
 }
 export declare enum CommandType {
@@ -176,6 +186,11 @@ export declare enum CommandType {
     GoRoutineOp = "GoRoutineOp",
     ChanRecvOp = "ChanRecvOp",
     ChanSendOp = "ChanSendOp",
+    WaitGroupAddOp = "WaitGroupAddOp",
+    WaitGroupDoneOp = "WaitGroupDoneOp",
+    WaitGroupWaitOp = "WaitGroupWaitOp",
+    MutexLockOp = "MutexLockOp",
+    MutexUnlockOp = "MutexUnlockOp",
     BranchOp = "BranchOp",
     EnvOp = "EnvOp",
     PopSOp = "PopSOp",
@@ -226,6 +241,19 @@ export interface ChanSendOp extends Command {
     type: CommandType.ChanSendOp;
 }
 export declare const ChanSend: () => ChanSendOp;
+export interface WaitGroupAddOp extends Command {
+    type: CommandType.WaitGroupAddOp;
+    count: number;
+}
+export declare const WaitGroupAdd: () => WaitGroupAddOp;
+export interface WaitGroupDoneOp extends Command {
+    type: CommandType.WaitGroupDoneOp;
+}
+export declare const WaitGroupDone: () => WaitGroupDoneOp;
+export interface WaitGroupWaitOp extends Command {
+    type: CommandType.WaitGroupWaitOp;
+}
+export declare const WaitGroupWait: () => WaitGroupWaitOp;
 export interface BranchOp extends Command {
     type: CommandType.BranchOp;
     cons: Block;
@@ -270,13 +298,24 @@ export declare const ForPostMarker: () => {
 export declare const ForEndMarker: () => {
     type: MarkerType;
 };
-export type Instruction = SourceFile | VariableDeclaration | FunctionDeclaration | Block | ExpressionStatement | SimpleStatement | ReturnStatement | IfStatement | ForStatement | GoStatement | SendStatement | BreakStatement | ContinueStatement | EmptyStatement | Expression | TypeLiteral | VarDeclOp | AssignOp | UnaryOp | BinaryOp | ClosureOp | CallOp | GoRoutineOp | ChanRecvOp | ChanSendOp | BranchOp | EnvOp | PopSOp | PopTillMOp | BuiltinOp | Marker;
+export type Instruction = SourceFile | VariableDeclaration | FunctionDeclaration | Block | ExpressionStatement | SimpleStatement | ReturnStatement | IfStatement | ForStatement | GoStatement | SendStatement | BreakStatement | ContinueStatement | EmptyStatement | Expression | TypeLiteral | VarDeclOp | AssignOp | UnaryOp | BinaryOp | ClosureOp | CallOp | GoRoutineOp | ChanRecvOp | ChanSendOp | WaitGroupAddOp | WaitGroupDoneOp | WaitGroupWaitOp | BranchOp | EnvOp | PopSOp | PopTillMOp | BuiltinOp | Marker;
 export interface Make {
-    type: Type;
+    type: MakeType;
 }
 export declare function isMake(v: any): boolean;
 export interface MakeChannel extends Make {
-    type: Type.Channel;
+    type: MakeType.Channel;
     size: number;
+}
+export interface New {
+    type: NewType;
+}
+export declare function isNew(v: any): boolean;
+export interface NewWaitGroup extends New {
+    type: NewType.WaitGroup;
+    count: number;
+}
+export interface NewMutex extends New {
+    type: NewType.Mutex;
 }
 export {};

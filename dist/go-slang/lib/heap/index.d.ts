@@ -43,6 +43,8 @@ export declare class Heap {
     private allocateEnvOp;
     allocateUnbufferedChan(): HeapAddress;
     allocateBufferedChan(size: number): HeapAddress;
+    allocateWaitGroup(): HeapAddress;
+    allocateMutex(): HeapAddress;
     /**
      * Allocate a tagged pointer in the heap
      *

@@ -4,6 +4,8 @@ exports.Heap = void 0;
 const error_1 = require("../../error");
 const types_1 = require("../../types");
 const channel_1 = require("../channel");
+const mutex_1 = require("../mutex");
+const waitgroup_1 = require("../waitgroup");
 const config_1 = require("./config");
 const tags_1 = require("./tags");
 function alignToWord(bytes) {
@@ -111,9 +113,18 @@ class Heap {
         // Make operation
         if ((0, types_1.isMake)(value)) {
             switch (value.type) {
-                case types_1.Type.Channel:
+                case types_1.MakeType.Channel:
                     const { size: bufSize } = value;
                     return bufSize === 0 ? this.allocateUnbufferedChan() : this.allocateBufferedChan(bufSize);
+            }
+        }
+        // New operation
+        if ((0, types_1.isNew)(value)) {
+            switch (value.type) {
+                case types_1.NewType.WaitGroup:
+                    return this.allocateWaitGroup();
+                case types_1.NewType.Mutex:
+                    return this.allocateMutex();
             }
         }
         return value;
@@ -193,6 +204,10 @@ class Heap {
                 // +1 to include the tagged pointer
                 config_1.WORD_SIZE * (chanMaxBufSize + 1));
                 return new channel_1.BufferedChannel(chanMemRegion);
+            case tags_1.PointerTag.WaitGroup:
+                return new waitgroup_1.WaitGroup(new DataView(this.memory.buffer, heap_addr, config_1.WORD_SIZE));
+            case tags_1.PointerTag.Mutex:
+                return new mutex_1.Mutex(new DataView(this.memory.buffer, heap_addr, config_1.WORD_SIZE));
         }
     }
     resolveM(heap_addrs) {
@@ -285,6 +300,20 @@ class Heap {
         this.memory.setUint8(ptr_heap_addr + 1, 0); // initialize read index to 0
         this.memory.setUint8(ptr_heap_addr + 2, 0); // initialize write index to 0
         this.memory.setUint8(ptr_heap_addr + 3, 0); // initialize buffer size to 0
+        return ptr_heap_addr;
+    }
+    /* Memory Layout of a WaitGroup:
+     * [0:tag, 1-4:count, 5-7:_unused] (1 word)
+     */
+    allocateWaitGroup() {
+        const ptr_heap_addr = this.allocateTaggedPtr(tags_1.PointerTag.WaitGroup);
+        this.memory.setFloat32(ptr_heap_addr + 1, 0); // initialize count to 0
+        return ptr_heap_addr;
+    }
+    /* Memory Layout of a Mutex: [0:tag, 1-6:_unused, 7:isLocked] (1 word) */
+    allocateMutex() {
+        const ptr_heap_addr = this.allocateTaggedPtr(tags_1.PointerTag.Mutex);
+        this.memory.setUint8(ptr_heap_addr + 7, 0); // initialize isLocked to false
         return ptr_heap_addr;
     }
     /**
