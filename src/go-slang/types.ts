@@ -17,6 +17,7 @@ export enum NodeType {
   UnaryExpression = 'UnaryExpression',
   BinaryExpression = 'BinaryExpression',
   Identifier = 'Identifier',
+  QualifiedIdentifier = 'QualifiedIdentifier',
   Literal = 'Literal',
   FunctionLiteral = 'FunctionLiteral',
   TypeLiteral = 'TypeLiteral',
@@ -43,6 +44,7 @@ type SimpleStatement = ExpressionStatement | Assignment | Declaration
 
 type Expression =
   | Identifier
+  | QualifiedIdentifier
   | Literal
   | FunctionLiteral
   | UnaryExpression
@@ -173,6 +175,12 @@ export interface Identifier extends Node {
   name: string
 }
 
+export interface QualifiedIdentifier extends Node {
+  type: NodeType.QualifiedIdentifier
+  pkg: Identifier
+  method: Identifier
+}
+
 export interface Literal extends Node {
   type: NodeType.Literal
   value: any
@@ -186,13 +194,17 @@ export interface FunctionLiteral extends Node {
   body: Block
 }
 
-export enum Type {
+export enum NewType {
+  WaitGroup = 'sync.WaitGroup'
+}
+
+export enum MakeType {
   Channel = 'chan'
 }
 
 export interface TypeLiteral extends Node {
   type: NodeType.TypeLiteral
-  value: Type
+  value: NewType | MakeType
 }
 
 export function isTypeLiteral(v: any): v is TypeLiteral {
@@ -242,7 +254,7 @@ export interface BinaryExpression extends Node {
 
 export interface CallExpression extends Node {
   type: NodeType.CallExpression
-  callee: Identifier | FunctionLiteral
+  callee: QualifiedIdentifier | Identifier | FunctionLiteral
   args: Expression[]
 }
 
@@ -256,6 +268,9 @@ export enum CommandType {
   GoRoutineOp = 'GoRoutineOp',
   ChanRecvOp = 'ChanRecvOp',
   ChanSendOp = 'ChanSendOp',
+  WaitGroupAddOp = 'WaitGroupAddOp',
+  WaitGroupDoneOp = 'WaitGroupDoneOp',
+  WaitGroupWaitOp = 'WaitGroupWaitOp',
   BranchOp = 'BranchOp',
   EnvOp = 'EnvOp',
   PopSOp = 'PopSOp',
@@ -321,6 +336,24 @@ export interface ChanSendOp extends Command {
 }
 
 export const ChanSend = () => ({ type: CommandType.ChanSendOp }) as ChanSendOp
+
+export interface WaitGroupAddOp extends Command {
+  type: CommandType.WaitGroupAddOp
+  count: number
+}
+
+export const WaitGroupAdd = () => ({ type: CommandType.WaitGroupAddOp }) as WaitGroupAddOp
+
+export interface WaitGroupDoneOp extends Command {
+  type: CommandType.WaitGroupDoneOp
+}
+
+export const WaitGroupDone = () => ({ type: CommandType.WaitGroupDoneOp }) as WaitGroupDoneOp
+export interface WaitGroupWaitOp extends Command {
+  type: CommandType.WaitGroupWaitOp
+}
+
+export const WaitGroupWait = () => ({ type: CommandType.WaitGroupWaitOp }) as WaitGroupWaitOp
 
 export interface BranchOp extends Command {
   type: CommandType.BranchOp
@@ -401,6 +434,9 @@ export type Instruction =
   | GoRoutineOp
   | ChanRecvOp
   | ChanSendOp
+  | WaitGroupAddOp
+  | WaitGroupDoneOp
+  | WaitGroupWaitOp
   | BranchOp
   | EnvOp
   | PopSOp
@@ -409,14 +445,27 @@ export type Instruction =
   | Marker
 
 export interface Make {
-  type: Type
+  type: MakeType
 }
 
 export function isMake(v: any): boolean {
-  return v && v.type && Object.values(Type).includes(v.type)
+  return v && v.type && Object.values(MakeType).includes(v.type)
 }
 
 export interface MakeChannel extends Make {
-  type: Type.Channel
+  type: MakeType.Channel
   size: number
+}
+
+export interface New {
+  type: NewType
+}
+
+export function isNew(v: any): boolean {
+  return v && v.type && Object.values(NewType).includes(v.type)
+}
+
+export interface NewWaitGroup extends New {
+  type: NewType.WaitGroup
+  count: number
 }

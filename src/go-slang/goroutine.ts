@@ -5,6 +5,7 @@ import {
   AssignmentOperationError,
   FuncArityError,
   GoExprMustBeFunctionCallError,
+  InvalidOperationError,
   UndefinedError,
   UnknownInstructionError
 } from './error'
@@ -61,11 +62,15 @@ import {
   UnaryOp,
   UnaryOperator,
   VarDeclOp,
-  VariableDeclaration
+  VariableDeclaration,
+  WaitGroupAddOp,
+  WaitGroupDoneOp,
+  WaitGroupWaitOp
 } from './types'
 import { Scheduler } from './scheduler'
 import { PredeclaredFuncT } from './lib/predeclared'
 import { BufferedChannel, UnbufferedChannel } from './lib/channel'
+import { WaitGroup } from './lib/waitgroup'
 
 export type Control = Stack<Instruction | HeapAddress>
 export type Stash = Stack<HeapAddress | any>
@@ -293,14 +298,43 @@ const Interpreter: {
   BinaryExpression: ({ left, right, operator: op }: BinaryExpression, { C, H, A }) =>
     C.pushR(...H.allocM([left, right, { type: CommandType.BinaryOp, opNodeId: A.track(op).uid }])),
 
-  CallExpression: ({ callee, args }: CallExpression, { C, H, A }) =>
-    C.pushR(
-      ...H.allocM([
-        callee,
-        ...args,
-        { type: CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }
-      ])
-    ),
+  CallExpression: ({ callee, args }: CallExpression, { C, E, S, H, A }) => {
+    if (callee.type !== NodeType.QualifiedIdentifier) {
+      C.pushR(
+        ...H.allocM([
+          callee,
+          ...args,
+          { type: CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }
+        ])
+      )
+      return
+    }
+
+    const className = H.resolve(E.lookup(callee.pkg.name))
+    if (className === null) {
+      return Result.fail(new UndefinedError(callee.pkg.name, callee.loc!))
+    }
+
+    if (className instanceof WaitGroup) {
+      const methodActions = {
+        Add: () => ({ type: CommandType.WaitGroupAddOp, count: (args[0] as Literal).value }),
+        Done: () => ({ type: CommandType.WaitGroupDoneOp }),
+        Wait: () => ({ type: CommandType.WaitGroupWaitOp })
+      }
+
+      const action = methodActions[callee.method.name]?.()
+      if (!action) {
+        return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
+      }
+
+      const waitGroupHeapAddress = E.lookup(callee.pkg.name)
+      S.push(waitGroupHeapAddress)
+      return C.push(action)
+    }
+
+    // Should be unreachable
+    return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
+  },
 
   ExpressionStatement: ({ expression }: ExpressionStatement, { C, H }) =>
     C.pushR(...H.allocM([expression, PopS])),
@@ -442,6 +476,30 @@ const Interpreter: {
 
     // NOTE: this should be unreachable
     return
+  },
+
+  WaitGroupAddOp: (inst: WaitGroupAddOp, { S, H }) => {
+    const wg = H.resolve(S.peek()) as WaitGroup
+    wg.add(inst.count)
+    return void S.pop()
+  },
+
+  WaitGroupDoneOp: (_inst: WaitGroupDoneOp, { S, H }) => {
+    const wg = H.resolve(S.peek()) as WaitGroup
+    if (wg.done() < 0) {
+      return Result.fail(new InvalidOperationError('WaitGroup cannot fall below zero'))
+    }
+    return void S.pop()
+  },
+
+  WaitGroupWaitOp: (inst: WaitGroupWaitOp, { C, S, H }) => {
+    const wg = H.resolve(S.peek()) as WaitGroup
+    // if the count is not zero, we have to wait again
+    if (wg.wait()) {
+      C.push(inst)
+      return Result.ok(GoRoutineState.Blocked)
+    }
+    return void S.pop()
   },
 
   BranchOp: ({ cons, alt }: BranchOp, { S, C, H }) =>

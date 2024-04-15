@@ -81,7 +81,8 @@ Expression
     = LogicalOrExpression
 
 PrimaryExpression
-    = Identifier
+    = QualifiedIdentifier
+    / Identifier
     / Literal
     / "(" _ expression: Expression _ ")" { return expression }
 
@@ -152,7 +153,10 @@ StringLit
       }
 
 TypeLit
-    = ChannelType { return makeNode({ type: "TypeLiteral", value: text() }) }
+    = ( WaitGroupType / ChannelType )  { return makeNode({ type: "TypeLiteral", value: text() }) }
+
+WaitGroupType
+    = SYNCWAITGROUP_TOKEN
 
 ChannelType 
     = CHAN_TOKEN
@@ -222,6 +226,13 @@ LogicalOrExpression
 CallExpression
     = callee:PrimaryExpression "(" args:ExpressionList? ")" {
         return makeNode({ type: "CallExpression", callee, args: args ?? [] })
+      }
+
+/* Qualified Identifier */
+
+QualifiedIdentifier
+    = pkg:Identifier _ "." _ method:Identifier {
+        return makeNode({ type: "QualifiedIdentifier", pkg, method })
       }
 
 /* Select Statement */
@@ -451,9 +462,11 @@ FOR_TOKEN           = "for"            !IdentifierPart
 IMPORT_TOKEN        = "import"         !IdentifierPart
 RETURN_TOKEN        = "return"         !IdentifierPart
 VAR_TOKEN           = "var"            !IdentifierPart
+SYNCWAITGROUP_TOKEN = "sync.WaitGroup" !IdentifierPart
 
 Keyword
-    = BREAK_TOKEN 
+    = SYNCWAITGROUP_TOKEN
+    / BREAK_TOKEN 
     / DEFAULT_TOKEN
     / FUNC_TOKEN
     / INTERFACE_TOKEN

@@ -1,5 +1,15 @@
 import { InvalidOperationError } from '../error'
-import { BuiltinOp, CommandType, Make, MakeChannel, Type, isTypeLiteral } from '../types'
+import {
+  BuiltinOp,
+  CommandType,
+  Make,
+  MakeChannel,
+  New,
+  NewType,
+  NewWaitGroup,
+  MakeType,
+  isTypeLiteral
+} from '../types'
 
 export type PredeclaredFuncT = (...args: any) => any
 
@@ -11,7 +21,8 @@ export interface PredeclaredFunc {
 
 export const PREDECLARED_IDENTIFIERS: { [key: string]: any } = {
   true: true,
-  false: false
+  false: false,
+  'sync.WaitGroup': NewType.WaitGroup
 }
 
 /**
@@ -41,30 +52,53 @@ function make(...args: any): Make | InvalidOperationError {
     return new InvalidOperationError(`make: first argument must be a type; ${type} is not a type`)
   }
 
-  if (type.value === Type.Channel) {
+  if (type.value === MakeType.Channel) {
     if (args.length > 2) {
       return new InvalidOperationError(
-        `make(${Type.Channel}, ${args.slice(1).join(', ')}) expects 1 or 2 arguments; found ${args.length}`
+        `make(${MakeType.Channel}, ${args.slice(1).join(', ')}) expects 1 or 2 arguments; found ${args.length}`
       )
     }
     if (args.length === 2) {
       if (typeof args[1] !== 'number') {
         return new InvalidOperationError(
-          `make(${Type.Channel}, ${args[1]})}) expects second argument to be a number; found ${args[1]}`
+          `make(${MakeType.Channel}, ${args[1]})}) expects second argument to be a number; found ${args[1]}`
         )
       }
       if (args[1] < 0) {
         return new InvalidOperationError(
-          `make(${Type.Channel}, ${args[1]})}) expects second argument to be a non-negative number; found ${args[1]}`
+          `make(${MakeType.Channel}, ${args[1]})}) expects second argument to be a non-negative number; found ${args[1]}`
         )
       }
     }
 
-    return { type: Type.Channel, size: args.length === 2 ? args[1] : 0 } as MakeChannel
+    return { type: MakeType.Channel, size: args.length === 2 ? args[1] : 0 } as MakeChannel
   }
 
   // NOTE: this should be unreachable
   return new InvalidOperationError(`make: cannot make type ${type.value}`)
+}
+
+function _new(...args: any): New | InvalidOperationError {
+  if (args.length === 0) {
+    return new InvalidOperationError(`not enough arguments for new() (expected 1, found 0)`)
+  }
+
+  const type = args[0]
+  if (!isTypeLiteral(type)) {
+    return new InvalidOperationError(`new: first argument must be a type; ${type} is not a type`)
+  }
+
+  if (type.value === NewType.WaitGroup) {
+    if (args.length > 1) {
+      return new InvalidOperationError(
+        `new(${NewType.WaitGroup}, ${args.slice(1).join(', ')}) expects 1 or 2 arguments; found ${args.length}`
+      )
+    }
+    return { type: NewType.WaitGroup, count: 0 } as NewWaitGroup
+  }
+
+  // NOTE: this should be unreachable
+  return new InvalidOperationError(`new: cannot make type ${type.value}`)
 }
 
 export const PREDECLARED_FUNCTIONS: PredeclaredFunc[] = [
@@ -77,5 +111,10 @@ export const PREDECLARED_FUNCTIONS: PredeclaredFunc[] = [
     name: 'make',
     func: make,
     op: { type: CommandType.BuiltinOp, arity: 2 }
+  },
+  {
+    name: 'new',
+    func: _new,
+    op: { type: CommandType.BuiltinOp, arity: 1 }
   }
 ]
