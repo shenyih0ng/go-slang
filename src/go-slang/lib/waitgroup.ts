@@ -1,21 +1,33 @@
-import { WORD_SIZE } from "./heap/config"
-
 export class WaitGroup {
   protected memory: DataView
+  protected COUNT_OFFSET = 1
 
-  toString(): string { return `WaitGroup { count: ${this.getCount()} }` }
+  toString(): string {
+    return `WaitGroup { count: ${this.getCount()} }`
+  }
 
-  constructor(memory: DataView) { this.memory = memory }
+  constructor(memory: DataView) {
+    this.memory = memory
+  }
 
-  protected getCountAddr(): number { return WORD_SIZE }
+  protected getCount(): number {
+    return this.memory.getFloat32(this.COUNT_OFFSET)
+  }
 
-  protected getCount(): number { return this.memory.getFloat64(this.getCountAddr()) }
+  protected setCount(value: number): number {
+    this.memory.setFloat32(this.COUNT_OFFSET, value)
+    return value
+  }
 
-  protected setCount(value: number): void { this.memory.setFloat64(this.getCountAddr(), value) }
+  public add(n: number): void {
+    this.setCount(this.getCount() + n)
+  }
 
-  public add(n: number): void { this.setCount(this.getCount() + n) }
+  public done(): number {
+    return this.setCount(this.getCount() - 1)
+  }
 
-  public done(): void { this.setCount(this.getCount() - 1) }
-
-  public wait(): boolean { return this.getCount() > 0 }
+  public wait(): boolean {
+    return this.getCount() > 0
+  }
 }

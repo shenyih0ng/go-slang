@@ -21,7 +21,7 @@ export enum NodeType {
   Literal = 'Literal',
   FunctionLiteral = 'FunctionLiteral',
   TypeLiteral = 'TypeLiteral',
-  CallExpression = 'CallExpression',
+  CallExpression = 'CallExpression'
 }
 
 type TopLevelDeclaration = Declaration | FunctionDeclaration

@@ -5,6 +5,7 @@ import {
   AssignmentOperationError,
   FuncArityError,
   GoExprMustBeFunctionCallError,
+  InvalidOperationError,
   UndefinedError,
   UnknownInstructionError
 } from './error'
@@ -144,7 +145,6 @@ export class GoRoutine {
 
       return nextState
     } catch (error) {
-      console.log(error)
       this.state = GoRoutineState.Exited
       return Result.fail(error)
     }
@@ -301,29 +301,36 @@ const Interpreter: {
 
   CallExpression: ({ callee, args }: CallExpression, { C, E, S, H, A }) => {
     if (callee.type !== NodeType.QualifiedIdentifier) {
-      C.pushR(...H.allocM([callee, ...args, { type: CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }]));
-      return;
+      C.pushR(
+        ...H.allocM([
+          callee,
+          ...args,
+          { type: CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }
+        ])
+      )
+      return
     }
-  
-    const className = H.resolve(E.lookup(callee.pkg.name));
+
+    const className = H.resolve(E.lookup(callee.pkg.name))
     if (className === null) {
-      return Result.fail(new UndefinedError(callee.pkg.name, callee.loc!));
+      return Result.fail(new UndefinedError(callee.pkg.name, callee.loc!))
     }
-  
+
     if (className instanceof WaitGroup) {
       const methodActions = {
-        'Add': () => ({ type: CommandType.WaitGroupAddOp, count: (args[0] as Literal).value }),
-        'Done': () => ({ type: CommandType.WaitGroupDoneOp }),
-        'Wait': () => ({ type: CommandType.WaitGroupWaitOp })
-      };
-  
-      const action = methodActions[callee.method.name]();
-      if (!action) { return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!)); }
-      
-      const waitGroupHeapAddress = E.lookup(callee.pkg.name);
-      S.push(waitGroupHeapAddress);
-      return C.push(action);
-      
+        Add: () => ({ type: CommandType.WaitGroupAddOp, count: (args[0] as Literal).value }),
+        Done: () => ({ type: CommandType.WaitGroupDoneOp }),
+        Wait: () => ({ type: CommandType.WaitGroupWaitOp })
+      }
+
+      const action = methodActions[callee.method.name]?.()
+      if (!action) {
+        return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
+      }
+
+      const waitGroupHeapAddress = E.lookup(callee.pkg.name)
+      S.push(waitGroupHeapAddress)
+      return C.push(action)
     }
 
     if (className instanceof Mutex) {
@@ -341,7 +348,7 @@ const Interpreter: {
     }
   
     // Should be unreachable
-    return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!));
+    return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
   },
 
   ExpressionStatement: ({ expression }: ExpressionStatement, { C, H }) =>
@@ -486,7 +493,7 @@ const Interpreter: {
     return
   },
 
-  WaitGroupAddOp: (inst: WaitGroupAddOp, {S, H}) => {
+  WaitGroupAddOp: (inst: WaitGroupAddOp, { S, H }) => {
     const wg = H.resolve(S.peek()) as WaitGroup
     wg.add(inst.count)
     return void S.pop()
@@ -494,7 +501,9 @@ const Interpreter: {
 
   WaitGroupDoneOp: (_inst: WaitGroupDoneOp, { S, H }) => {
     const wg = H.resolve(S.peek()) as WaitGroup
-    wg.done()
+    if (wg.done() < 0) {
+      return Result.fail(new InvalidOperationError('WaitGroup cannot fall below zero'))
+    }
     return void S.pop()
   },
 
