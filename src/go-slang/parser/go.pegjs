@@ -153,7 +153,10 @@ StringLit
       }
 
 TypeLit
-    = ( WaitGroupType / ChannelType )  { return makeNode({ type: "TypeLiteral", value: text() }) }
+    = ( WaitGroupType / ChannelType / MutexType )  { return makeNode({ type: "TypeLiteral", value: text() }) }
+
+MutexType
+    = SYNCMUTEX_TOKEN
 
 WaitGroupType
     = SYNCWAITGROUP_TOKEN
@@ -463,9 +466,11 @@ IMPORT_TOKEN        = "import"         !IdentifierPart
 RETURN_TOKEN        = "return"         !IdentifierPart
 VAR_TOKEN           = "var"            !IdentifierPart
 SYNCWAITGROUP_TOKEN = "sync.WaitGroup" !IdentifierPart
+SYNCMUTEX_TOKEN     = "sync.Mutex"     !IdentifierPart
 
 Keyword
-    = SYNCWAITGROUP_TOKEN
+    = SYNCMUTEX_TOKEN
+    / SYNCWAITGROUP_TOKEN
     / BREAK_TOKEN 
     / DEFAULT_TOKEN
     / FUNC_TOKEN

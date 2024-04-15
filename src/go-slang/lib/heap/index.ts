@@ -23,6 +23,7 @@ import {
 } from '../../types'
 import { AstMap } from '../astMap'
 import { BufferedChannel, UnbufferedChannel } from '../channel'
+import { Mutex } from '../mutex'
 import { WaitGroup } from '../waitgroup'
 import { DEFAULT_HEAP_SIZE, SIZE_OFFSET, WORD_SIZE } from './config'
 import { PointerTag } from './tags'
@@ -173,6 +174,8 @@ export class Heap {
       switch (value.type) {
         case NewType.WaitGroup:
           return this.allocateWaitGroup()
+        case NewType.Mutex:
+          return this.allocateMutex()
       }
     }
 
@@ -261,6 +264,8 @@ export class Heap {
         return new BufferedChannel(chanMemRegion)
       case PointerTag.WaitGroup:
         return new WaitGroup(new DataView(this.memory.buffer, heap_addr, WORD_SIZE))
+      case PointerTag.Mutex:
+        return new Mutex(new DataView(this.memory.buffer, heap_addr, WORD_SIZE))
     }
   }
 
@@ -378,6 +383,14 @@ export class Heap {
   public allocateWaitGroup(): HeapAddress {
     const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.WaitGroup)
     this.memory.setFloat32(ptr_heap_addr + 1, 0) // initialize count to 0
+
+    return ptr_heap_addr
+  }
+
+  /* Memory Layout of a Mutex: [0:tag, 1-6:_unused, 7:isLocked] (1 word) */
+  public allocateMutex(): HeapAddress {
+    const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.Mutex)
+    this.memory.setUint8(ptr_heap_addr + 7, 0) // initialize isLocked to false
 
     return ptr_heap_addr
   }
