@@ -339,7 +339,7 @@ const Interpreter: {
         Unlock: () => ({ type: CommandType.MutexUnlockOp })
       }
 
-      const action = methodActions[callee.method.name]()
+      const action = methodActions[callee.method.name]?.()
       if (!action) {
         return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
       }
