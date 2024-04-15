@@ -383,7 +383,7 @@ export class Heap {
   public allocateWaitGroup(): HeapAddress {
     const ptr_heap_addr = this.allocateTaggedPtr(PointerTag.WaitGroup)
     this.memory.setFloat32(ptr_heap_addr + 1, 0) // initialize count to 0
-        
+
     return ptr_heap_addr
   }
 

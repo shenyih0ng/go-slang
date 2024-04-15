@@ -335,18 +335,20 @@ const Interpreter: {
 
     if (className instanceof Mutex) {
       const methodActions = {
-        'Lock': () => ({ type: CommandType.MutexLockOp }),
-        'Unlock': () => ({ type: CommandType.MutexUnlockOp })
-      };
-  
-      const action = methodActions[callee.method.name]();
-      if (!action) { return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!)); }
-      
-      const mutexHeapAddress = E.lookup(callee.pkg.name);
-      S.push(mutexHeapAddress);
-      return C.push(action);
+        Lock: () => ({ type: CommandType.MutexLockOp }),
+        Unlock: () => ({ type: CommandType.MutexUnlockOp })
+      }
+
+      const action = methodActions[callee.method.name]()
+      if (!action) {
+        return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
+      }
+
+      const mutexHeapAddress = E.lookup(callee.pkg.name)
+      S.push(mutexHeapAddress)
+      return C.push(action)
     }
-  
+
     // Should be unreachable
     return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
   },

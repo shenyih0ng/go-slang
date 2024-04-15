@@ -22,8 +22,8 @@ export interface PredeclaredFunc {
 export const PREDECLARED_IDENTIFIERS: { [key: string]: any } = {
   true: true,
   false: false,
-  "sync.WaitGroup": NewType.WaitGroup,
-  "sync.Mutex": NewType.Mutex,
+  'sync.WaitGroup': NewType.WaitGroup,
+  'sync.Mutex': NewType.Mutex
 }
 
 /**

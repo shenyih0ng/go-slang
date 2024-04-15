@@ -476,5 +476,3 @@ export interface NewWaitGroup extends New {
 export interface NewMutex extends New {
   type: NewType.Mutex
 }
-
-
