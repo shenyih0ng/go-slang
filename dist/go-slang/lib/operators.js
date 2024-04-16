@@ -2,11 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.evaluateBinaryOp = exports.evaluateUnaryOp = void 0;
 const error_1 = require("../error");
-const channel_1 = require("./channel");
+const types_1 = require("./heap/types");
 const utils_1 = require("./utils");
 function _typeof(value) {
-    if (value instanceof channel_1.Channel) {
-        return 'chan';
+    if (value instanceof types_1.HeapObject) {
+        return 'heapObj';
     }
     const typeName = typeof value;
     return typeName === 'number' ? 'int' : typeName;
@@ -87,12 +87,13 @@ function evaluateRelationalOp(operator, left, right) {
     if (!isSameType(left, right)) {
         return utils_1.Result.fail(new error_1.InvalidOperationError(`${left} ${operator} ${right} (mismatched types ${_typeof(left)} and ${_typeof(right)})`));
     }
-    if (_typeof(left) === 'chan') {
+    if (_typeof(left) === 'heapObj') {
         if (operator !== '==' && operator !== '!=') {
             return utils_1.Result.fail(new error_1.InvalidOperationError(`${left} ${operator} ${right} (operator ${operator} not defined on chan)`));
         }
-        left = left.addr();
-        right = right.addr();
+        // compare the memory address of the two heap objects
+        left = left.addr;
+        right = right.addr;
     }
     let result = undefined;
     switch (operator) {

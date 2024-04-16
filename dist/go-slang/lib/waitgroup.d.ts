@@ -1,5 +1,5 @@
-export declare class WaitGroup {
-    protected memory: DataView;
+import { HeapObject } from './heap/types';
+export declare class WaitGroup extends HeapObject {
     protected COUNT_OFFSET: number;
     toString(): string;
     constructor(memory: DataView);

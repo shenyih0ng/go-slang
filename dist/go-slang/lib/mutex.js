@@ -1,13 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Mutex = void 0;
-class Mutex {
+const types_1 = require("./heap/types");
+class Mutex extends types_1.HeapObject {
     toString() {
         return `Mutex { isLocked: ${this.getisLocked()} }`;
     }
     constructor(memory) {
+        super(memory);
         this.LOCKED_OFFSET = 7;
-        this.memory = memory;
     }
     getisLocked() {
         return this.memory.getUint8(this.LOCKED_OFFSET) === 1;

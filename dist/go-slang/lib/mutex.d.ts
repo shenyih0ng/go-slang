@@ -1,5 +1,5 @@
-export declare class Mutex {
-    protected memory: DataView;
+import { HeapObject } from './heap/types';
+export declare class Mutex extends HeapObject {
     protected LOCKED_OFFSET: number;
     toString(): string;
     constructor(memory: DataView);

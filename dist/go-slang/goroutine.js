@@ -54,7 +54,7 @@ class GoRoutine {
         }
         catch (error) {
             this.state = GoRoutineState.Exited;
-            return utils_2.Result.fail(error);
+            return utils_2.Result.fail(error instanceof runtimeSourceError_1.RuntimeSourceError ? error : new error_1.InternalError(error.message));
         }
     }
 }
@@ -162,13 +162,13 @@ const Interpreter = {
     CallExpression: ({ callee, args }, { C, E, S, H, A }) => {
         var _a, _b;
         if (callee.type !== types_1.NodeType.QualifiedIdentifier) {
-            C.pushR(...H.allocM([
+            return C.pushR(...H.allocM([
                 callee,
                 ...args,
                 { type: types_1.CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }
             ]));
-            return;
         }
+        const qualifiedIdStr = callee.pkg.name + '.' + callee.method.name;
         const className = H.resolve(E.lookup(callee.pkg.name));
         if (className === null) {
             return utils_2.Result.fail(new error_1.UndefinedError(callee.pkg.name, callee.loc));
@@ -181,7 +181,7 @@ const Interpreter = {
             };
             const action = (_a = methodActions[callee.method.name]) === null || _a === void 0 ? void 0 : _a.call(methodActions);
             if (!action) {
-                return utils_2.Result.fail(new error_1.UndefinedError(callee.method.name, callee.method.loc));
+                return utils_2.Result.fail(new error_1.UndefinedError(qualifiedIdStr, callee.method.loc));
             }
             const waitGroupHeapAddress = E.lookup(callee.pkg.name);
             S.push(waitGroupHeapAddress);
@@ -194,14 +194,14 @@ const Interpreter = {
             };
             const action = (_b = methodActions[callee.method.name]) === null || _b === void 0 ? void 0 : _b.call(methodActions);
             if (!action) {
-                return utils_2.Result.fail(new error_1.UndefinedError(callee.method.name, callee.method.loc));
+                return utils_2.Result.fail(new error_1.UndefinedError(qualifiedIdStr, callee.method.loc));
             }
             const mutexHeapAddress = E.lookup(callee.pkg.name);
             S.push(mutexHeapAddress);
             return C.push(action);
         }
         // Should be unreachable
-        return utils_2.Result.fail(new error_1.UndefinedError(callee.method.name, callee.method.loc));
+        return utils_2.Result.fail(new error_1.UndefinedError(qualifiedIdStr, callee.method.loc));
     },
     ExpressionStatement: ({ expression }, { C, H }) => C.pushR(...H.allocM([expression, types_1.PopS])),
     VarDeclOp: ({ idNodeUid, zeroValue }, { S, E, H, A }) => {

@@ -43,3 +43,8 @@ export declare class DeadLockError extends RuntimeSourceError {
 export declare class OutOfMemoryError extends RuntimeSourceError {
     explain(): string;
 }
+export declare class InternalError extends RuntimeSourceError {
+    private message;
+    constructor(message: string);
+    explain(): string;
+}

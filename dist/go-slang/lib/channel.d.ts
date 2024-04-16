@@ -1,11 +1,10 @@
-export declare class Channel {
-    protected memory: DataView;
+import { HeapObject } from './heap/types';
+export declare class Channel extends HeapObject {
     constructor(memory: DataView);
     protected get maxBufSize(): number;
     protected getSlotAddr(slotIdx: number): number;
     protected getSlotValue(slotIdx: number): number;
     protected setSlotValue(slotIdx: number, value: number): void;
-    addr(): number;
 }
 export declare class UnbufferedChannel extends Channel {
     static RECV_ID_OFFSET: number;

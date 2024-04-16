@@ -1,13 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WaitGroup = void 0;
-class WaitGroup {
+const types_1 = require("./heap/types");
+class WaitGroup extends types_1.HeapObject {
     toString() {
         return `WaitGroup { count: ${this.getCount()} }`;
     }
     constructor(memory) {
+        super(memory);
         this.COUNT_OFFSET = 1;
-        this.memory = memory;
     }
     getCount() {
         return this.memory.getFloat32(this.COUNT_OFFSET);

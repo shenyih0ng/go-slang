@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OutOfMemoryError = exports.DeadLockError = exports.GoExprMustBeFunctionCallError = exports.FuncArityError = exports.AssignmentOperationError = exports.UndefinedError = exports.InvalidOperationError = exports.UnknownInstructionError = void 0;
+exports.InternalError = exports.OutOfMemoryError = exports.DeadLockError = exports.GoExprMustBeFunctionCallError = exports.FuncArityError = exports.AssignmentOperationError = exports.UndefinedError = exports.InvalidOperationError = exports.UnknownInstructionError = void 0;
 const runtimeSourceError_1 = require("../errors/runtimeSourceError");
 class UnknownInstructionError extends runtimeSourceError_1.RuntimeSourceError {
     constructor(inst_type) {
@@ -84,4 +84,14 @@ class OutOfMemoryError extends runtimeSourceError_1.RuntimeSourceError {
     }
 }
 exports.OutOfMemoryError = OutOfMemoryError;
+class InternalError extends runtimeSourceError_1.RuntimeSourceError {
+    constructor(message) {
+        super();
+        this.message = message;
+    }
+    explain() {
+        return `internal error: ${this.message}\nPlease report this issue.`;
+    }
+}
+exports.InternalError = InternalError;
 //# sourceMappingURL=error.js.map
