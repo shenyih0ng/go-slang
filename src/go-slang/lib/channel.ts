@@ -1,10 +1,9 @@
 import { WORD_SIZE } from './heap/config'
+import { HeapObject } from './heap/types'
 
 /* prettier-ignore */
-export class Channel {
-  protected memory: DataView
-
-  constructor(memory: DataView) { this.memory = memory }
+export class Channel extends HeapObject{
+  constructor(memory: DataView) { super(memory) }
 
   protected get maxBufSize(): number { return this.memory.getUint16(5) }
 
@@ -13,8 +12,6 @@ export class Channel {
   protected getSlotValue(slotIdx: number): number { return this.memory.getFloat64(this.getSlotAddr(slotIdx)) }
 
   protected setSlotValue(slotIdx: number, value: number): void { this.memory.setFloat64(this.getSlotAddr(slotIdx), value) }
-
-  public addr(): number { return this.memory.byteOffset }
 }
 
 export class UnbufferedChannel extends Channel {
@@ -108,7 +105,7 @@ export class UnbufferedChannel extends Channel {
   }
 
   public toString(): string {
-    return `UnbufferedChan(addr=0x${this.addr().toString(16)})`
+    return `UnbufferedChan(addr=0x${this.addr.toString(16)})`
   }
 
   private hasSender(): boolean { return this.sendId !== UnbufferedChannel.NULL_ID } // prettier-ignore
@@ -174,7 +171,7 @@ export class BufferedChannel extends Channel {
   }
 
   public toString(): string {
-    return `BufferedChan(addr=0x${this.addr().toString(16)})`
+    return `BufferedChan(addr=0x${this.addr.toString(16)})`
   }
 
   public isBufferFull(): boolean {

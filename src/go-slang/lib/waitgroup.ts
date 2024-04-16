@@ -1,5 +1,6 @@
-export class WaitGroup {
-  protected memory: DataView
+import { HeapObject } from './heap/types'
+
+export class WaitGroup extends HeapObject {
   protected COUNT_OFFSET = 1
 
   toString(): string {
@@ -7,7 +8,7 @@ export class WaitGroup {
   }
 
   constructor(memory: DataView) {
-    this.memory = memory
+    super(memory)
   }
 
   protected getCount(): number {
