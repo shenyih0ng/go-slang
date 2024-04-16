@@ -184,7 +184,14 @@ const Interpreter: {
 
   IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C, H }) => {
     const branchOp: BranchOp = { type: CommandType.BranchOp, cons, alt }
-    stmt ? C.pushR(...H.allocM([stmt, cond, branchOp])) : C.pushR(...H.allocM([cond, branchOp]))
+    stmt
+      ? C.push(
+          H.alloc({
+            type: NodeType.Block,
+            statements: [stmt, { type: NodeType.IfStatement, cond, cons, alt }]
+          })
+        )
+      : C.pushR(...H.allocM([cond, branchOp]))
   },
 
   ForStatement: (inst: ForStatement, { C, H }) => {
