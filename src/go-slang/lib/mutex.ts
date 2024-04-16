@@ -1,5 +1,6 @@
-export class Mutex {
-  protected memory: DataView
+import { HeapObject } from './heap/types'
+
+export class Mutex extends HeapObject {
   protected LOCKED_OFFSET = 7
 
   toString(): string {
@@ -7,7 +8,7 @@ export class Mutex {
   }
 
   constructor(memory: DataView) {
-    this.memory = memory
+    super(memory)
   }
 
   protected getisLocked(): boolean {
