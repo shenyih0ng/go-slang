@@ -113,3 +113,16 @@ export class OutOfMemoryError extends RuntimeSourceError {
     return 'runtime: out of memory'
   }
 }
+
+export class InternalError extends RuntimeSourceError {
+  private message: string
+
+  constructor(message: string) {
+    super()
+    this.message = message
+  }
+
+  public explain() {
+    return `internal error: ${this.message}\nPlease report this issue.`
+  }
+}

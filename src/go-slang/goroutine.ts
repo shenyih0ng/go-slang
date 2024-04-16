@@ -5,6 +5,7 @@ import {
   AssignmentOperationError,
   FuncArityError,
   GoExprMustBeFunctionCallError,
+  InternalError,
   InvalidOperationError,
   UndefinedError,
   UnknownInstructionError
@@ -146,7 +147,9 @@ export class GoRoutine {
       return nextState
     } catch (error) {
       this.state = GoRoutineState.Exited
-      return Result.fail(error)
+      return Result.fail(
+        error instanceof RuntimeSourceError ? error : new InternalError(error.message)
+      )
     }
   }
 }
@@ -301,16 +304,16 @@ const Interpreter: {
 
   CallExpression: ({ callee, args }: CallExpression, { C, E, S, H, A }) => {
     if (callee.type !== NodeType.QualifiedIdentifier) {
-      C.pushR(
+      return C.pushR(
         ...H.allocM([
           callee,
           ...args,
           { type: CommandType.CallOp, calleeNodeId: A.track(callee).uid, arity: args.length }
         ])
       )
-      return
     }
 
+    const qualifiedIdStr = callee.pkg.name + '.' + callee.method.name
     const className = H.resolve(E.lookup(callee.pkg.name))
     if (className === null) {
       return Result.fail(new UndefinedError(callee.pkg.name, callee.loc!))
@@ -325,7 +328,7 @@ const Interpreter: {
 
       const action = methodActions[callee.method.name]?.()
       if (!action) {
-        return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
+        return Result.fail(new UndefinedError(qualifiedIdStr, callee.method.loc!))
       }
 
       const waitGroupHeapAddress = E.lookup(callee.pkg.name)
@@ -341,7 +344,7 @@ const Interpreter: {
 
       const action = methodActions[callee.method.name]?.()
       if (!action) {
-        return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
+        return Result.fail(new UndefinedError(qualifiedIdStr, callee.method.loc!))
       }
 
       const mutexHeapAddress = E.lookup(callee.pkg.name)
@@ -350,7 +353,7 @@ const Interpreter: {
     }
 
     // Should be unreachable
-    return Result.fail(new UndefinedError(callee.method.name, callee.method.loc!))
+    return Result.fail(new UndefinedError(qualifiedIdStr, callee.method.loc!))
   },
 
   ExpressionStatement: ({ expression }: ExpressionStatement, { C, H }) =>
