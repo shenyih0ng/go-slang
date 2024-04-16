@@ -1,12 +1,12 @@
 import { RuntimeSourceError } from '../../errors/runtimeSourceError'
 import { InvalidOperationError } from '../error'
 import { BinaryOperator, UnaryOperator } from '../types'
-import { Channel } from './channel'
+import { HeapObject } from './heap/types'
 import { Result } from './utils'
 
 function _typeof(value: any): string {
-  if (value instanceof Channel) {
-    return 'chan'
+  if (value instanceof HeapObject) {
+    return 'heapObj'
   }
 
   const typeName = typeof value
@@ -134,7 +134,7 @@ function evaluateRelationalOp(
     )
   }
 
-  if (_typeof(left) === 'chan') {
+  if (_typeof(left) === 'heapObj') {
     if (operator !== '==' && operator !== '!=') {
       return Result.fail(
         new InvalidOperationError(
@@ -142,8 +142,9 @@ function evaluateRelationalOp(
         )
       )
     }
-    left = (left as Channel).addr()
-    right = (right as Channel).addr()
+    // compare the memory address of the two heap objects
+    left = left.addr
+    right = right.addr
   }
 
   let result = undefined
