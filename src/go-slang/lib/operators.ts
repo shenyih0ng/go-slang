@@ -126,7 +126,9 @@ function evaluateRelationalOp(
   left: any,
   right: any
 ): Result<boolean, InvalidOperationError> {
-  if (!isSameType(left, right)) {
+  const hasNil = left === undefined || right === undefined
+
+  if (!isSameType(left, right) && !hasNil) {
     return Result.fail(
       new InvalidOperationError(
         `${left} ${operator} ${right} (mismatched types ${_typeof(left)} and ${_typeof(right)})`
@@ -134,7 +136,7 @@ function evaluateRelationalOp(
     )
   }
 
-  if (_typeof(left) === 'heapObj') {
+  if (_typeof(left) === 'heapObj' && !hasNil) {
     if (operator !== '==' && operator !== '!=') {
       return Result.fail(
         new InvalidOperationError(
