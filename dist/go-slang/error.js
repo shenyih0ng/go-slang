@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.InternalError = exports.OutOfMemoryError = exports.DeadLockError = exports.GoExprMustBeFunctionCallError = exports.FuncArityError = exports.AssignmentOperationError = exports.UndefinedError = exports.InvalidOperationError = exports.UnknownInstructionError = void 0;
+exports.InternalError = exports.OutOfMemoryError = exports.DeadLockError = exports.GoExprMustBeFunctionCallError = exports.FuncArityError = exports.AssignmentOperationError = exports.RedeclarationError = exports.UndefinedError = exports.InvalidOperationError = exports.UnknownInstructionError = void 0;
 const runtimeSourceError_1 = require("../errors/runtimeSourceError");
 class UnknownInstructionError extends runtimeSourceError_1.RuntimeSourceError {
     constructor(inst_type) {
@@ -36,6 +36,17 @@ class UndefinedError extends runtimeSourceError_1.RuntimeSourceError {
     }
 }
 exports.UndefinedError = UndefinedError;
+class RedeclarationError extends runtimeSourceError_1.RuntimeSourceError {
+    constructor(identifier, location) {
+        super();
+        this.identifier = identifier;
+        this.location = location;
+    }
+    explain() {
+        return `${this.identifier} redeclared in this block`;
+    }
+}
+exports.RedeclarationError = RedeclarationError;
 class AssignmentOperationError extends runtimeSourceError_1.RuntimeSourceError {
     constructor(location) {
         super();

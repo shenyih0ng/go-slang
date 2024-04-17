@@ -17,6 +17,7 @@ export declare class Environment {
     extend(bindings: {
         [key: string]: any;
     }): Environment;
+    declaredInBlock(name: string): boolean;
     copy(): Environment;
     activeHeapAddresses(): Set<HeapAddress>;
 }

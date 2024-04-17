@@ -55,6 +55,9 @@ class Environment {
         this.currFrame = this.newFrame(bindings, this.currFrame);
         return this;
     }
+    declaredInBlock(name) {
+        return this.currFrame.bindings.has(name);
+    }
     copy() {
         const newEnv = new Environment();
         newEnv.frameMap = this.frameMap;

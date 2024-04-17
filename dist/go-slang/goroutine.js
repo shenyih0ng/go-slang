@@ -73,7 +73,12 @@ const Interpreter = {
     ReturnStatement: ({ expression }, { C, H }) => C.pushR(H.alloc(expression), H.alloc((0, types_1.PopTillM)((0, types_1.RetMarker)()))),
     IfStatement: ({ stmt, cond, cons, alt }, { C, H }) => {
         const branchOp = { type: types_1.CommandType.BranchOp, cons, alt };
-        stmt ? C.pushR(...H.allocM([stmt, cond, branchOp])) : C.pushR(...H.allocM([cond, branchOp]));
+        stmt
+            ? C.push(H.alloc({
+                type: types_1.NodeType.Block,
+                statements: [stmt, { type: types_1.NodeType.IfStatement, cond, cons, alt }]
+            }))
+            : C.pushR(...H.allocM([cond, branchOp]));
     },
     ForStatement: (inst, { C, H }) => {
         const { form, block: forBlock } = inst;
@@ -89,13 +94,21 @@ const Interpreter = {
         }
         else if (form.type === types_1.ForFormType.ForClause) {
             const { init, cond, post } = form;
+            const initDeclIds = init && init.type === types_1.NodeType.VariableDeclaration ? init.left : [];
             const forCond = {
                 type: types_1.NodeType.ForStatement,
                 form: { type: types_1.ForFormType.ForCondition, expression: cond !== null && cond !== void 0 ? cond : types_1.True },
                 block: {
                     type: types_1.NodeType.Block,
                     statements: [
-                        Object.assign(Object.assign({}, forBlock), { statements: forBlock.statements.concat((0, types_1.ForPostMarker)()) }),
+                        {
+                            type: types_1.NodeType.Block,
+                            statements: [
+                                // eqv to: id = id (copy of init declarations with the current values)
+                                { type: types_1.NodeType.VariableDeclaration, left: initDeclIds, right: initDeclIds },
+                                ...forBlock.statements.concat((0, types_1.ForPostMarker)())
+                            ]
+                        },
                         post !== null && post !== void 0 ? post : types_1.EmptyStmt
                     ]
                 }
@@ -153,7 +166,7 @@ const Interpreter = {
         envId: E.id()
     })),
     TypeLiteral: (inst, { S }) => S.push(inst),
-    Identifier: ({ name, loc }, { S, E, H }) => {
+    Identifier: ({ name, loc }, { S, E }) => {
         const value = E.lookup(name);
         return value === null ? utils_2.Result.fail(new error_1.UndefinedError(name, loc)) : S.push(value);
     },
@@ -204,11 +217,15 @@ const Interpreter = {
         return utils_2.Result.fail(new error_1.UndefinedError(qualifiedIdStr, callee.method.loc));
     },
     ExpressionStatement: ({ expression }, { C, H }) => C.pushR(...H.allocM([expression, types_1.PopS])),
-    VarDeclOp: ({ idNodeUid, zeroValue }, { S, E, H, A }) => {
-        const name = A.get(idNodeUid).name;
-        zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop());
+    VarDeclOp: ({ idNodeUid, zeroValue }, { S, E, A }) => {
+        const id = A.get(idNodeUid);
+        const name = id.name;
+        if (E.declaredInBlock(name)) {
+            return utils_2.Result.fail(new error_1.RedeclarationError(name, id.loc));
+        }
+        return void zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop());
     },
-    AssignOp: ({ idNodeUid }, { S, E, H, A }) => {
+    AssignOp: ({ idNodeUid }, { S, E, A }) => {
         const id = A.get(idNodeUid);
         !E.assign(id.name, S.pop()) ? new error_1.UndefinedError(id.name, id.loc) : void {};
     },
