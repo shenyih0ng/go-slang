@@ -7,6 +7,7 @@ import {
   GoExprMustBeFunctionCallError,
   InternalError,
   InvalidOperationError,
+  RedeclarationError,
   UndefinedError,
   UnknownInstructionError
 } from './error'
@@ -298,7 +299,7 @@ const Interpreter: {
 
   TypeLiteral: (inst: TypeLiteral, { S }) => S.push(inst),
 
-  Identifier: ({ name, loc }: Identifier, { S, E, H }) => {
+  Identifier: ({ name, loc }: Identifier, { S, E }) => {
     const value = E.lookup(name)
     return value === null ? Result.fail(new UndefinedError(name, loc!)) : S.push(value)
   },
@@ -366,12 +367,16 @@ const Interpreter: {
   ExpressionStatement: ({ expression }: ExpressionStatement, { C, H }) =>
     C.pushR(...H.allocM([expression, PopS])),
 
-  VarDeclOp: ({ idNodeUid, zeroValue }: VarDeclOp, { S, E, H, A }) => {
-    const name = A.get<Identifier>(idNodeUid).name
-    zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop())
+  VarDeclOp: ({ idNodeUid, zeroValue }: VarDeclOp, { S, E, A }) => {
+    const id = A.get<Identifier>(idNodeUid)
+    const name = id.name
+    if (E.declaredInBlock(name)) {
+      return Result.fail(new RedeclarationError(name, id.loc!))
+    }
+    return void zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop())
   },
 
-  AssignOp: ({ idNodeUid }: AssignOp, { S, E, H, A }) => {
+  AssignOp: ({ idNodeUid }: AssignOp, { S, E, A }) => {
     const id = A.get<Identifier>(idNodeUid)
     !E.assign(id.name, S.pop()) ? new UndefinedError(id.name, id.loc!) : void {}
   },

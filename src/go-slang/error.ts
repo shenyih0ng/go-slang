@@ -49,6 +49,22 @@ export class UndefinedError extends RuntimeSourceError {
   }
 }
 
+export class RedeclarationError extends RuntimeSourceError {
+  private identifier: string
+
+  public location: NodeLocation
+
+  constructor(identifier: string, location: NodeLocation) {
+    super()
+    this.identifier = identifier
+    this.location = location
+  }
+
+  public explain() {
+    return `${this.identifier} redeclared in this block`
+  }
+}
+
 export class AssignmentOperationError extends RuntimeSourceError {
   public location: NodeLocation
 

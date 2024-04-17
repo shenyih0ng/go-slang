@@ -70,6 +70,10 @@ export class Environment {
     return this
   }
 
+  public declaredInBlock(name: string): boolean {
+    return this.currFrame.bindings.has(name)
+  }
+
   public copy(): Environment {
     const newEnv = new Environment()
     newEnv.frameMap = this.frameMap
