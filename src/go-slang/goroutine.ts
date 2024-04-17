@@ -209,13 +209,21 @@ const Interpreter: {
       )
     } else if (form.type === ForFormType.ForClause) {
       const { init, cond, post } = form
+      const initDeclIds = init && init.type === NodeType.VariableDeclaration ? init.left : []
       const forCond = {
         type: NodeType.ForStatement,
         form: { type: ForFormType.ForCondition, expression: cond ?? True },
         block: {
           type: NodeType.Block,
           statements: [
-            { ...forBlock, statements: forBlock.statements.concat(ForPostMarker()) },
+            {
+              type: NodeType.Block,
+              statements: [
+                // eqv to: id = id (copy of init declarations with the current values)
+                { type: NodeType.VariableDeclaration, left: initDeclIds, right: initDeclIds },
+                ...forBlock.statements.concat(ForPostMarker())
+              ]
+            },
             post ?? EmptyStmt
           ]
         }
