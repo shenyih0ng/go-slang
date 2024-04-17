@@ -7,6 +7,7 @@ import {
   GoExprMustBeFunctionCallError,
   InternalError,
   InvalidOperationError,
+  RedeclarationError,
   UndefinedError,
   UnknownInstructionError
 } from './error'
@@ -184,7 +185,14 @@ const Interpreter: {
 
   IfStatement: ({ stmt, cond, cons, alt }: IfStatement, { C, H }) => {
     const branchOp: BranchOp = { type: CommandType.BranchOp, cons, alt }
-    stmt ? C.pushR(...H.allocM([stmt, cond, branchOp])) : C.pushR(...H.allocM([cond, branchOp]))
+    stmt
+      ? C.push(
+          H.alloc({
+            type: NodeType.Block,
+            statements: [stmt, { type: NodeType.IfStatement, cond, cons, alt }]
+          })
+        )
+      : C.pushR(...H.allocM([cond, branchOp]))
   },
 
   ForStatement: (inst: ForStatement, { C, H }) => {
@@ -202,13 +210,21 @@ const Interpreter: {
       )
     } else if (form.type === ForFormType.ForClause) {
       const { init, cond, post } = form
+      const initDeclIds = init && init.type === NodeType.VariableDeclaration ? init.left : []
       const forCond = {
         type: NodeType.ForStatement,
         form: { type: ForFormType.ForCondition, expression: cond ?? True },
         block: {
           type: NodeType.Block,
           statements: [
-            { ...forBlock, statements: forBlock.statements.concat(ForPostMarker()) },
+            {
+              type: NodeType.Block,
+              statements: [
+                // eqv to: id = id (copy of init declarations with the current values)
+                { type: NodeType.VariableDeclaration, left: initDeclIds, right: initDeclIds },
+                ...forBlock.statements.concat(ForPostMarker())
+              ]
+            },
             post ?? EmptyStmt
           ]
         }
@@ -291,7 +307,7 @@ const Interpreter: {
 
   TypeLiteral: (inst: TypeLiteral, { S }) => S.push(inst),
 
-  Identifier: ({ name, loc }: Identifier, { S, E, H }) => {
+  Identifier: ({ name, loc }: Identifier, { S, E }) => {
     const value = E.lookup(name)
     return value === null ? Result.fail(new UndefinedError(name, loc!)) : S.push(value)
   },
@@ -359,12 +375,16 @@ const Interpreter: {
   ExpressionStatement: ({ expression }: ExpressionStatement, { C, H }) =>
     C.pushR(...H.allocM([expression, PopS])),
 
-  VarDeclOp: ({ idNodeUid, zeroValue }: VarDeclOp, { S, E, H, A }) => {
-    const name = A.get<Identifier>(idNodeUid).name
-    zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop())
+  VarDeclOp: ({ idNodeUid, zeroValue }: VarDeclOp, { S, E, A }) => {
+    const id = A.get<Identifier>(idNodeUid)
+    const name = id.name
+    if (E.declaredInBlock(name)) {
+      return Result.fail(new RedeclarationError(name, id.loc!))
+    }
+    return void zeroValue ? E.declareZeroValue(name) : E.declare(name, S.pop())
   },
 
-  AssignOp: ({ idNodeUid }: AssignOp, { S, E, H, A }) => {
+  AssignOp: ({ idNodeUid }: AssignOp, { S, E, A }) => {
     const id = A.get<Identifier>(idNodeUid)
     !E.assign(id.name, S.pop()) ? new UndefinedError(id.name, id.loc!) : void {}
   },
