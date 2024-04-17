@@ -227,7 +227,7 @@ LogicalOrExpression
       { return buildBinaryExpression(head, tail); }
 
 CallExpression
-    = callee:PrimaryExpression "(" args:ExpressionList? ")" {
+    = callee:PrimaryExpression "(" _ args:ExpressionList? _ ")" {
         return makeNode({ type: "CallExpression", callee, args: args ?? [] })
       }
 
