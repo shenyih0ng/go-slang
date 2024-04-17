@@ -477,7 +477,7 @@ const Interpreter: {
         return Result.ok(GoRoutineState.Blocked)
       }
       S.pop() // pop the channel address
-      return S.push(H.alloc(chan.recv()))
+      return S.push(chan.recv())
     }
 
     if (chan instanceof UnbufferedChannel) {
@@ -488,12 +488,13 @@ const Interpreter: {
         return Result.ok(GoRoutineState.Blocked)
       }
       S.pop() // pop the channel address
-      return S.push(H.alloc(recvValue))
+      return S.push(recvValue)
     }
   },
 
   ChanSendOp: (inst: ChanSendOp, { C, S, H }, _sched, routineId: number) => {
-    const [chan, sendValue] = H.resolveM(S.peekN(2)!) as [BufferedChannel | UnbufferedChannel, any]
+    const [chanAddr, sendAddr] = S.peekN(2)!
+    const chan = H.resolve(chanAddr) as BufferedChannel | UnbufferedChannel
 
     if (chan instanceof BufferedChannel) {
       // if the channel is full, we retry the send operation
@@ -502,12 +503,12 @@ const Interpreter: {
         return Result.ok(GoRoutineState.Blocked)
       }
       S.popN(2) // pop the channel address and the value address
-      return void chan.send(sendValue)
+      return void chan.send(sendAddr)
     }
 
     if (chan instanceof UnbufferedChannel) {
       // if we cannot send, we retry the send operation
-      if (!chan.send(routineId, sendValue)) {
+      if (!chan.send(routineId, sendAddr)) {
         C.push(inst)
         return Result.ok(GoRoutineState.Blocked)
       }
