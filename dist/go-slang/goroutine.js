@@ -82,22 +82,19 @@ const Interpreter = {
     },
     ForStatement: (inst, { C, H }) => {
         const { form, block: forBlock } = inst;
-        if (form === null || form.type === types_1.ForFormType.ForCondition) {
+        if (form.type === types_1.ForFormType.ForCondition) {
             const branch = { type: types_1.CommandType.BranchOp, cons: forBlock, alt: (0, types_1.PopTillM)((0, types_1.ForEndMarker)()) };
-            C.pushR(...H.allocM([
-                form ? form.expression : types_1.True,
-                branch,
-                (0, types_1.ForStartMarker)(),
-                inst,
-                (0, types_1.ForEndMarker)()
-            ]));
+            C.pushR(...H.allocM([form.expression, branch, (0, types_1.ForStartMarker)(), inst, (0, types_1.ForEndMarker)()]));
         }
         else if (form.type === types_1.ForFormType.ForClause) {
             const { init, cond, post } = form;
             const initDeclIds = init && init.type === types_1.NodeType.VariableDeclaration ? init.left : [];
             const forCond = {
                 type: types_1.NodeType.ForStatement,
-                form: { type: types_1.ForFormType.ForCondition, expression: cond !== null && cond !== void 0 ? cond : types_1.True },
+                form: {
+                    type: types_1.ForFormType.ForCondition,
+                    expression: cond !== null && cond !== void 0 ? cond : { type: types_1.NodeType.Literal, value: true }
+                },
                 block: {
                     type: types_1.NodeType.Block,
                     statements: [
@@ -299,7 +296,7 @@ const Interpreter = {
                 return utils_2.Result.ok(GoRoutineState.Blocked);
             }
             S.pop(); // pop the channel address
-            return S.push(H.alloc(chan.recv()));
+            return S.push(chan.recv());
         }
         if (chan instanceof channel_1.UnbufferedChannel) {
             const recvValue = chan.recv(routineId);
@@ -309,11 +306,12 @@ const Interpreter = {
                 return utils_2.Result.ok(GoRoutineState.Blocked);
             }
             S.pop(); // pop the channel address
-            return S.push(H.alloc(recvValue));
+            return S.push(recvValue);
         }
     },
     ChanSendOp: (inst, { C, S, H }, _sched, routineId) => {
-        const [chan, sendValue] = H.resolveM(S.peekN(2));
+        const [chanAddr, sendAddr] = S.peekN(2);
+        const chan = H.resolve(chanAddr);
         if (chan instanceof channel_1.BufferedChannel) {
             // if the channel is full, we retry the send operation
             if (chan.isBufferFull()) {
@@ -321,11 +319,11 @@ const Interpreter = {
                 return utils_2.Result.ok(GoRoutineState.Blocked);
             }
             S.popN(2); // pop the channel address and the value address
-            return void chan.send(sendValue);
+            return void chan.send(sendAddr);
         }
         if (chan instanceof channel_1.UnbufferedChannel) {
             // if we cannot send, we retry the send operation
-            if (!chan.send(routineId, sendValue)) {
+            if (!chan.send(routineId, sendAddr)) {
                 C.push(inst);
                 return utils_2.Result.ok(GoRoutineState.Blocked);
             }

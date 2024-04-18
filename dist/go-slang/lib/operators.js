@@ -84,10 +84,11 @@ function evaluateBitwiseOp(operator, left, right) {
     return utils_1.Result.ok(result);
 }
 function evaluateRelationalOp(operator, left, right) {
-    if (!isSameType(left, right)) {
+    const hasNil = left === undefined || right === undefined;
+    if (!isSameType(left, right) && !hasNil) {
         return utils_1.Result.fail(new error_1.InvalidOperationError(`${left} ${operator} ${right} (mismatched types ${_typeof(left)} and ${_typeof(right)})`));
     }
-    if (_typeof(left) === 'heapObj') {
+    if (_typeof(left) === 'heapObj' && !hasNil) {
         if (operator !== '==' && operator !== '!=') {
             return utils_1.Result.fail(new error_1.InvalidOperationError(`${left} ${operator} ${right} (operator ${operator} not defined on chan)`));
         }

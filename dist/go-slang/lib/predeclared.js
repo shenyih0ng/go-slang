@@ -6,6 +6,7 @@ const types_1 = require("../types");
 exports.PREDECLARED_IDENTIFIERS = {
     true: true,
     false: false,
+    nil: undefined,
     'sync.WaitGroup': types_1.NewType.WaitGroup,
     'sync.Mutex': types_1.NewType.Mutex
 };

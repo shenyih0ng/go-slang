@@ -441,7 +441,13 @@ function peg$parse(input, options) {
     };
     var peg$f36 = function (stmt) { return stmt; };
     var peg$f37 = function (alt) { return alt; };
-    var peg$f38 = function (form, block) { return makeNode({ type: "ForStatement", form, block }); };
+    var peg$f38 = function (form, block) {
+        return makeNode({
+            type: "ForStatement",
+            form: form !== null && form !== void 0 ? form : { type: "ForCondition", expression: buildLiteral(true) },
+            block
+        });
+    };
     var peg$f39 = function (expression) { return { type: "ForCondition", expression }; };
     var peg$f40 = function (init, cond, post) {
         return { type: "ForClause", init, cond, post };

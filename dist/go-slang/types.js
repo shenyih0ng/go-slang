@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isNew = exports.isMake = exports.ForEndMarker = exports.ForPostMarker = exports.ForStartMarker = exports.RetMarker = exports.MarkerType = exports.PopTillM = exports.PopS = exports.WaitGroupWait = exports.WaitGroupDone = exports.WaitGroupAdd = exports.ChanSend = exports.ChanRecv = exports.isCommand = exports.CommandType = exports.isTypeLiteral = exports.MakeType = exports.NewType = exports.True = exports.EmptyStmt = exports.ForFormType = exports.isNode = exports.NodeType = void 0;
+exports.isNew = exports.isMake = exports.ForEndMarker = exports.ForPostMarker = exports.ForStartMarker = exports.RetMarker = exports.MarkerType = exports.PopTillM = exports.PopS = exports.WaitGroupWait = exports.WaitGroupDone = exports.WaitGroupAdd = exports.ChanSend = exports.ChanRecv = exports.isCommand = exports.CommandType = exports.isTypeLiteral = exports.MakeType = exports.NewType = exports.EmptyStmt = exports.ForFormType = exports.isNode = exports.NodeType = void 0;
 var NodeType;
 (function (NodeType) {
     NodeType["SourceFile"] = "SourceFile";
@@ -37,7 +37,6 @@ var ForFormType;
     ForFormType["ForClause"] = "ForClause";
 })(ForFormType = exports.ForFormType || (exports.ForFormType = {}));
 exports.EmptyStmt = { type: NodeType.EmptyStatement };
-exports.True = { type: NodeType.Literal, value: true };
 var NewType;
 (function (NewType) {
     NewType["WaitGroup"] = "sync.WaitGroup";

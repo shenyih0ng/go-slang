@@ -136,7 +136,6 @@ export interface Literal extends Node {
     type: NodeType.Literal;
     value: any;
 }
-export declare const True: Literal;
 export interface FunctionLiteral extends Node {
     type: NodeType.FunctionLiteral;
     params: Identifier[];
