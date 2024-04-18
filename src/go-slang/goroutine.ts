@@ -58,7 +58,6 @@ import {
   ReturnStatement,
   SendStatement,
   SourceFile,
-  True,
   TypeLiteral,
   UnaryExpression,
   UnaryOp,
@@ -197,23 +196,20 @@ const Interpreter: {
 
   ForStatement: (inst: ForStatement, { C, H }) => {
     const { form, block: forBlock } = inst
-    if (form === null || form.type === ForFormType.ForCondition) {
+    if (form.type === ForFormType.ForCondition) {
       const branch = { type: CommandType.BranchOp, cons: forBlock, alt: PopTillM(ForEndMarker()) }
       C.pushR(
-        ...H.allocM([
-          form ? form.expression : True,
-          branch as BranchOp,
-          ForStartMarker(),
-          inst,
-          ForEndMarker()
-        ])
+        ...H.allocM([form.expression, branch as BranchOp, ForStartMarker(), inst, ForEndMarker()])
       )
     } else if (form.type === ForFormType.ForClause) {
       const { init, cond, post } = form
       const initDeclIds = init && init.type === NodeType.VariableDeclaration ? init.left : []
       const forCond = {
         type: NodeType.ForStatement,
-        form: { type: ForFormType.ForCondition, expression: cond ?? True },
+        form: {
+          type: ForFormType.ForCondition,
+          expression: cond ?? { type: NodeType.Literal, value: true }
+        },
         block: {
           type: NodeType.Block,
           statements: [
