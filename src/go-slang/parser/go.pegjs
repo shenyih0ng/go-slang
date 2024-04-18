@@ -360,7 +360,13 @@ ElseBranch
 /* For Statement */
 
 ForStatement
-    = FOR_TOKEN __ form:ForForm? __ block:Block EOS { return makeNode({ type: "ForStatement", form, block}) }
+    = FOR_TOKEN __ form:ForForm? __ block:Block EOS { 
+        return makeNode({ 
+            type: "ForStatement", 
+            form: form ?? { type: "ForCondition", expression: buildLiteral(true) }, 
+            block
+        }) 
+    }
       
 ForForm
 	= ForClause

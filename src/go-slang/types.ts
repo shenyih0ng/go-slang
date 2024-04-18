@@ -186,8 +186,6 @@ export interface Literal extends Node {
   value: any
 }
 
-export const True: Literal = { type: NodeType.Literal, value: true }
-
 export interface FunctionLiteral extends Node {
   type: NodeType.FunctionLiteral
   params: Identifier[]
