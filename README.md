@@ -6,6 +6,8 @@ An interpreter for a subset of the Go programming language. The interpreter is a
 
 The Go ECE currently supports commonly used sequential language constructs and widely used concurrent constructs like Channels, Mutexes and WaitGroups. _Check out the grammar below for the full list of constructs supported._
 
+Implementation of the Go ECE is found in the [`src/go-slang`](/src/go-slang) directory.
+
 ## EBNF Grammar
 
 The grammar is modified subset of the Go programming language ([go1.22 Feb 6 2024](https://go.dev/ref/spec)) specifications.
@@ -34,43 +36,27 @@ SimpleStatement =
         ExpressionStatement | SendStatement | IncDecStatement |         
         Assignment | ShortVariableDeclaration .
 
-// Variable Declarations
-
 VariableDeclaration = "var" VarSpec .
 VarSpec = IdentifierList [ "=" ExpressionList ] .
 
 ShortVariableDeclaration = IdentifierList ":=" ExpressionList .
 
-// If Statement
-
 IfStatement = 
         "if" [ SimpleStatement ";" ] Expression Block 
          [ "else" (IfStatement | Block) ] .
-
-// For Statement
 
 ForStatement = "for" [ ForCondition | ForClause ] Block .
 ForClause = [ InitStatement ] ";" [ ForCondition ] ";" [ PostStatement ] .
 ForCondition = Expression .
 
-// Assignment
-
 Assignment = ExpressionList assign_op ExpressionList .
 assign_op = [ add_op | mul_op ] "=" .
 
-// Send Statement
-
 SendStatement = Expression "<-" Expression .
-
-// Increment / Decrement Statement
 
 IncDecStatememt = Expression ( "++" | "--" ) .
 
-// Go Statement
-
 GoStatement = "go" Expression .
-
-// Expressions
 
 Expression = UnaryExpression | Expression binary_op Expression .
 ExpressionList = Expression { "," Expression } .
@@ -81,23 +67,15 @@ PrimaryExpression =
 
 ExpressionStatement = Expression .
 
-// Break, Continue, Return Statements
-
 BreakStatement = "break" .
 ContinueStatement = "continue" .
 ReturnStatement = "return" [ ExpressionList ] .
 
-// Identifier
-
 Identifier = Letter { Letter | UnicodeDigit } .
 IdentifierList = Identifier { "," Identifier } .
 
-// Qualified Identifier
-
 QualifiedIdentifier = PackageName "." Identifier .
 PackageName = Identifier .
-
-// Literals
 
 Literal = BasicLit | FunctionLit .
 BasicLit = IntegerLit | StringLit | TypeLit .
@@ -110,8 +88,6 @@ WaitGroupType = "sync.WaitGroup" .
 MutexType = "sync.Mutex" .
 
 FunctionLit = "func" Signature Block .
-
-// Operators
 
 binary_op = "||"| "&&" | rel_op | add_op | mul_op .
 rel_op = "==" | "!=" | "<" | "<=" | ">" | ">=" .
